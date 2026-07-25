@@ -275,6 +275,13 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
 
     let cats = ["apps", "categories", "devices", "emblems", "mime", "preferences", "status"];
     let frame_names: Vec<String> = pack.frames.colorizable.iter().map(|f| f.name.clone()).collect();
+    let static_dark_names: Vec<String> = pack.frames.static_frames.as_ref().map_or(Vec::new(), |sf| {
+        sf.dark.iter().map(|f| f.name.clone()).collect()
+    });
+    let static_light_names: Vec<String> = pack.frames.static_frames.as_ref().map_or(Vec::new(), |sf| {
+        sf.light.iter().map(|f| f.name.clone()).collect()
+    });
+    let has_static = pack.has_static_frames();
     let acc_names: Vec<String> = pack.accessories.iter().map(|a| a.name.clone()).collect();
 
     for &cat in &cats {
@@ -292,12 +299,19 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
         let frame_cb = gtk::CheckButton::with_label("Frame");
         row.pack_start(&frame_cb, false, false, 0);
 
-        let frame_combo = gtk::ComboBoxText::new();
-        frame_combo.append_text("default");
-        for name in &frame_names {
-            frame_combo.append_text(name);
+        // Frame source selector (only if pack has static frames)
+        let source_combo = gtk::ComboBoxText::new();
+        source_combo.append_text("colorizable");
+        if has_static {
+            source_combo.append_text("static dark");
+            source_combo.append_text("static light");
         }
-        frame_combo.set_active(Some(0));
+        source_combo.set_active(Some(0));
+        row.pack_start(&source_combo, false, false, 0);
+
+        // Frame name combo — populated based on source
+        let frame_combo = gtk::ComboBoxText::new();
+        populate_frame_combo(&frame_combo, &frame_names);
         row.pack_start(&frame_combo, false, false, 0);
 
         let acc_cb = gtk::CheckButton::with_label("Accessories");
@@ -311,88 +325,123 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
         acc_combo.set_active(Some(0));
         row.pack_start(&acc_combo, false, false, 0);
 
+        // Restore saved state
         {
             let ov = d.config.pack.category_override(cat);
             frame_cb.set_active(ov.show_frame);
             acc_cb.set_active(ov.show_accessories);
-            if let Some(ref sf) = ov.selected_frame {
-                if let Some(idx) = frame_names.iter().position(|n| n == sf) {
+
+            let src_idx = match ov.frame_source.as_str() {
+                "static_dark" if has_static => 1,
+                "static_light" if has_static => 2,
+                _ => 0,
+            };
+            source_combo.set_active(Some(src_idx));
+
+            // Populate frame combo and select based on source
+            let (pool_names, sel_name) = match ov.frame_source.as_str() {
+                "static_dark" => (&static_dark_names, ov.selected_static_frame.as_ref()),
+                "static_light" => (&static_light_names, ov.selected_static_frame.as_ref()),
+                _ => (&frame_names, ov.selected_frame.as_ref()),
+            };
+            populate_frame_combo(&frame_combo, pool_names);
+            if let Some(name) = sel_name {
+                if let Some(idx) = pool_names.iter().position(|n| n == name) {
                     #[allow(clippy::cast_possible_truncation)]
                     frame_combo.set_active(Some(idx as u32 + 1));
                 }
             }
-            if let Some(single) = ov.selected_accessories.first() {
-                if let Some(idx) = acc_names.iter().position(|n| n == single) {
-                    #[allow(clippy::cast_possible_truncation)]
-                    acc_combo.set_active(Some(idx as u32 + 1));
-                }
-            }
         }
 
+        // --- Signal: Frame checkbox ---
         let data_fc = Rc::downgrade(data);
         let cat_fc = cat.to_string();
         frame_cb.connect_toggled(move |cb| {
             let Some(data) = data_fc.upgrade() else { return };
             let def = data.borrow().config.pack.category_override(&cat_fc);
             let mut d2 = data.borrow_mut();
-            let ov = d2.config.pack.category_overrides.entry(cat_fc.clone()).or_insert(miconium_core::config::CategoryOverride {
-                show_frame: def.show_frame,
-                show_accessories: def.show_accessories,
-                selected_frame: None,
-                selected_accessories: Vec::new(),
-            });
+            let ov = d2.config.pack.category_overrides.entry(cat_fc.clone()).or_insert(category_override_defaults(&def));
             ov.show_frame = cb.is_active();
             drop(d2);
             rebuild_preview(&data);
         });
 
+        // --- Signal: Source combo (colorizable / static dark / static light) ---
+        let data_src = Rc::downgrade(data);
+        let cat_src = cat.to_string();
+        let fn_fc = frame_names.clone();
+        let fn_dark = static_dark_names.clone();
+        let fn_light = static_light_names.clone();
+        let frame_combo_src = frame_combo.clone();
+        source_combo.connect_changed(move |combo| {
+            let active = combo.active_text().unwrap_or_default();
+            let pool: &[String] = match active.as_str() {
+                "static dark" => &fn_dark,
+                "static light" => &fn_light,
+                _ => &fn_fc,
+            };
+            populate_frame_combo(&frame_combo_src, pool);
+
+            let Some(data) = data_src.upgrade() else { return };
+            let def = data.borrow().config.pack.category_override(&cat_src);
+            let mut d2 = data.borrow_mut();
+            let ov = d2.config.pack.category_overrides.entry(cat_src.clone()).or_insert(category_override_defaults(&def));
+            ov.frame_source = match active.as_str() {
+                "static dark" => "static_dark".into(),
+                "static light" => "static_light".into(),
+                _ => "colorizable".into(),
+            };
+            ov.selected_frame = None;
+            ov.selected_static_frame = None;
+            drop(d2);
+            rebuild_preview(&data);
+        });
+
+        // --- Signal: Frame combo ---
         let data_fcombo = Rc::downgrade(data);
         let cat_fcombo = cat.to_string();
         frame_combo.connect_changed(move |combo| {
             let Some(data) = data_fcombo.upgrade() else { return };
             let def = data.borrow().config.pack.category_override(&cat_fcombo);
             let mut d2 = data.borrow_mut();
-            let ov = d2.config.pack.category_overrides.entry(cat_fcombo.clone()).or_insert(miconium_core::config::CategoryOverride {
-                show_frame: def.show_frame,
-                show_accessories: def.show_accessories,
-                selected_frame: None,
-                selected_accessories: Vec::new(),
-            });
+            let ov = d2.config.pack.category_overrides.entry(cat_fcombo.clone()).or_insert(category_override_defaults(&def));
             let active = combo.active_text();
-            ov.selected_frame = active.filter(|t| t != "default").map(String::from);
+            match ov.frame_source.as_str() {
+                "static_dark" => {
+                    ov.selected_static_frame = active.filter(|t| t != "default").map(String::from);
+                }
+                "static_light" => {
+                    ov.selected_static_frame = active.filter(|t| t != "default").map(String::from);
+                }
+                _ => {
+                    ov.selected_frame = active.filter(|t| t != "default").map(String::from);
+                }
+            }
             drop(d2);
             rebuild_preview(&data);
         });
 
+        // --- Signal: Accessories checkbox ---
         let data_accb = Rc::downgrade(data);
         let cat_accb = cat.to_string();
         acc_cb.connect_toggled(move |cb| {
             let Some(data) = data_accb.upgrade() else { return };
             let def = data.borrow().config.pack.category_override(&cat_accb);
             let mut d2 = data.borrow_mut();
-            let ov = d2.config.pack.category_overrides.entry(cat_accb.clone()).or_insert(miconium_core::config::CategoryOverride {
-                show_frame: def.show_frame,
-                show_accessories: def.show_accessories,
-                selected_frame: None,
-                selected_accessories: Vec::new(),
-            });
+            let ov = d2.config.pack.category_overrides.entry(cat_accb.clone()).or_insert(category_override_defaults(&def));
             ov.show_accessories = cb.is_active();
             drop(d2);
             rebuild_preview(&data);
         });
 
+        // --- Signal: Accessories combo ---
         let data_acco = Rc::downgrade(data);
         let cat_acco = cat.to_string();
         acc_combo.connect_changed(move |combo| {
             let Some(data) = data_acco.upgrade() else { return };
             let def = data.borrow().config.pack.category_override(&cat_acco);
             let mut d2 = data.borrow_mut();
-            let ov = d2.config.pack.category_overrides.entry(cat_acco.clone()).or_insert(miconium_core::config::CategoryOverride {
-                show_frame: def.show_frame,
-                show_accessories: def.show_accessories,
-                selected_frame: None,
-                selected_accessories: Vec::new(),
-            });
+            let ov = d2.config.pack.category_overrides.entry(cat_acco.clone()).or_insert(category_override_defaults(&def));
             let active = combo.active_text();
             match active.as_deref() {
                 None | Some("all") => ov.selected_accessories.clear(),
@@ -411,6 +460,26 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
     frame.add(&list);
     outer.pack_start(&frame, true, true, 0);
     outer
+}
+
+fn populate_frame_combo(combo: &gtk::ComboBoxText, names: &[String]) {
+    combo.remove_all();
+    combo.append_text("default");
+    for name in names {
+        combo.append_text(name.as_str());
+    }
+    combo.set_active(Some(0));
+}
+
+fn category_override_defaults(def: &miconium_core::config::CategoryOverride) -> miconium_core::config::CategoryOverride {
+    miconium_core::config::CategoryOverride {
+        show_frame: def.show_frame,
+        show_accessories: def.show_accessories,
+        selected_frame: None,
+        selected_accessories: Vec::new(),
+        frame_source: def.frame_source.clone(),
+        selected_static_frame: None,
+    }
 }
 
 fn choose_pack(
@@ -678,6 +747,7 @@ fn build_color_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
     sidebar.pack_start(&color_frame, false, false, 0);
 }
 
+#[allow(dead_code)]
 fn find_frame_by_name(pack: &Pack, name: Option<&str>) -> Option<miconium_core::pack::LayerData> {
     let name = name?;
     pack.frames.colorizable.iter().find(|f| f.name == name).cloned()
@@ -768,12 +838,7 @@ fn build_categories_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
             let Some(data) = data_fc.upgrade() else { return };
             let def = data.borrow().config.pack.category_override(&cat_fc);
             let mut d = data.borrow_mut();
-            let ov = d.config.pack.category_overrides.entry(cat_fc.clone()).or_insert(miconium_core::config::CategoryOverride {
-                show_frame: def.show_frame,
-                show_accessories: def.show_accessories,
-                selected_frame: None,
-                selected_accessories: Vec::new(),
-            });
+            let ov = d.config.pack.category_overrides.entry(cat_fc.clone()).or_insert(category_override_defaults(&def));
             ov.show_frame = cb.is_active();
             drop(d);
             rebuild_preview(&data);
@@ -785,12 +850,7 @@ fn build_categories_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
             let Some(data) = data_fcombo.upgrade() else { return };
             let def = data.borrow().config.pack.category_override(&cat_fcombo);
             let mut d = data.borrow_mut();
-            let ov = d.config.pack.category_overrides.entry(cat_fcombo.clone()).or_insert(miconium_core::config::CategoryOverride {
-                show_frame: def.show_frame,
-                show_accessories: def.show_accessories,
-                selected_frame: None,
-                selected_accessories: Vec::new(),
-            });
+            let ov = d.config.pack.category_overrides.entry(cat_fcombo.clone()).or_insert(category_override_defaults(&def));
             let active = combo.active_text();
             ov.selected_frame = active.filter(|t| t != "default").map(String::from);
             drop(d);
@@ -803,12 +863,7 @@ fn build_categories_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
             let Some(data) = data_accb.upgrade() else { return };
             let def = data.borrow().config.pack.category_override(&cat_accb);
             let mut d = data.borrow_mut();
-            let ov = d.config.pack.category_overrides.entry(cat_accb.clone()).or_insert(miconium_core::config::CategoryOverride {
-                show_frame: def.show_frame,
-                show_accessories: def.show_accessories,
-                selected_frame: None,
-                selected_accessories: Vec::new(),
-            });
+            let ov = d.config.pack.category_overrides.entry(cat_accb.clone()).or_insert(category_override_defaults(&def));
             ov.show_accessories = cb.is_active();
             drop(d);
             rebuild_preview(&data);
@@ -820,12 +875,7 @@ fn build_categories_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
             let Some(data) = data_acco.upgrade() else { return };
             let def = data.borrow().config.pack.category_override(&cat_acco);
             let mut d = data.borrow_mut();
-            let ov = d.config.pack.category_overrides.entry(cat_acco.clone()).or_insert(miconium_core::config::CategoryOverride {
-                show_frame: def.show_frame,
-                show_accessories: def.show_accessories,
-                selected_frame: None,
-                selected_accessories: Vec::new(),
-            });
+            let ov = d.config.pack.category_overrides.entry(cat_acco.clone()).or_insert(category_override_defaults(&def));
             let active = combo.active_text();
             match active.as_deref() {
                 None | Some("all") => ov.selected_accessories.clear(),
@@ -947,30 +997,40 @@ fn preview_icon(data: &Rc<RefCell<AppData>>, icon_name: &str) {
         let use_accessories = ov.show_accessories;
 
         let (frame_data, frame_is_static) = if use_frame {
-            let by_name = ov.selected_frame.as_deref().and_then(|n| find_frame_by_name(pack, Some(n)));
-            let found = by_name.or_else(|| {
-                let c = pack.frames.colorizable.first().cloned();
-                if c.as_ref().is_some_and(|f| !f.svg_content.is_empty()) {
-                    return c;
-                }
-                pack.frames
-                    .static_frames
-                    .as_ref()
-                    .and_then(|sf| sf.light.first().cloned())
-                    .or_else(|| {
-                        pack.frames
-                            .static_frames
-                            .as_ref()
-                            .and_then(|sf| sf.dark.first().cloned())
+            let found = match ov.frame_source.as_str() {
+                "static_dark" => {
+                    let name = ov.selected_static_frame.as_deref();
+                    name.and_then(|n| {
+                        pack.frames.static_frames.as_ref()?
+                            .dark.iter().find(|f| f.name == n).cloned()
                     })
-            });
+                    .or_else(|| {
+                        pack.frames.static_frames.as_ref()?
+                            .dark.first().cloned()
+                    })
+                }
+                "static_light" => {
+                    let name = ov.selected_static_frame.as_deref();
+                    name.and_then(|n| {
+                        pack.frames.static_frames.as_ref()?
+                            .light.iter().find(|f| f.name == n).cloned()
+                    })
+                    .or_else(|| {
+                        pack.frames.static_frames.as_ref()?
+                            .light.first().cloned()
+                    })
+                }
+                _ => {
+                    ov.selected_frame.as_deref()
+                        .and_then(|n| pack.frames.colorizable.iter().find(|f| f.name == n).cloned())
+                        .or_else(|| pack.frames.colorizable.first().cloned())
+                }
+            };
             let Some(f) = found else {
                 eprintln!("Preview: no frames available for '{icon_name}'");
                 return;
             };
-            let is_static = pack.frames.static_frames.as_ref().is_some_and(|sf| {
-                sf.light.iter().chain(sf.dark.iter()).any(|sf_f| sf_f.name == f.name)
-            });
+            let is_static = ov.frame_source.as_str() != "colorizable";
             (f, is_static)
         } else {
             (miconium_core::pack::LayerData {

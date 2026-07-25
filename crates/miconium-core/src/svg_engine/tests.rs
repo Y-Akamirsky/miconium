@@ -152,7 +152,8 @@ fn assemble_icon_no_accessories() {
     let icon = assemble_icon(&frame, &sign, &[], &palette, true, true, false, 1.0, 1.0, 1.0).unwrap();
     assert!(icon.svg.contains("rect"));
     assert!(icon.svg.contains("circle"));
-    assert_eq!(icon.svg.matches("</g>").count(), 2);
+    // 3 groups: layer-0 (frame), fill-wrapper, layer-1 (sign)
+    assert_eq!(icon.svg.matches("</g>").count(), 3);
 }
 
 #[test]

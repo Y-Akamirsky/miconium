@@ -217,6 +217,7 @@ pub fn assemble_icon(
     let mut s = sign.clone();
     s.svg_content = inject_colors(&s.svg_content, palette, !use_frame);
     s.svg_content = replace_hardcoded_colors(&s.svg_content, &palette.foreground);
+    s.svg_content = wrap_svg_body_with_fill(&s.svg_content, &palette.foreground);
     layers.push(s);
     layer_scales.push(icon_scale);
 
@@ -226,6 +227,7 @@ pub fn assemble_icon(
             if !a.name.starts_with("st-") {
                 a.svg_content = inject_colors(&a.svg_content, palette, false);
                 a.svg_content = replace_hardcoded_colors(&a.svg_content, &palette.accent);
+                a.svg_content = wrap_svg_body_with_fill(&a.svg_content, &palette.accent);
             }
             layers.push(a);
             layer_scales.push(acc_scale);
@@ -255,6 +257,17 @@ pub fn assemble_single(svg: &str, palette: &Palette) -> Result<AssembledIcon, Sv
 /// Handles `fill="#XXXXXX"`, `stroke="#XXXXXX"`, `stop-color="#XXXXXX"`,
 /// and `fill:#XXXXXX`/`stroke:#XXXXXX`/`stop-color:#XXXXXX` inside `style=""`.
 /// Skips `url(#…)`.
+/// Wrap SVG body in `<g fill="{color}">` so elements without explicit fill
+/// inherit the target color.
+fn wrap_svg_body_with_fill(svg: &str, color: &str) -> String {
+    let Some(start) = svg.find("<svg") else { return svg.to_string() };
+    let Some(tag_end) = svg[start..].find('>') else { return svg.to_string() };
+    let open_tag = &svg[..=start + tag_end];
+    let Some(body_end) = svg.rfind("</svg>") else { return svg.to_string() };
+    let body = &svg[start + tag_end + 1..body_end];
+    format!("{open_tag}<g fill=\"{color}\">{body}</g></svg>")
+}
+
 #[must_use]
 pub fn replace_hardcoded_colors(svg: &str, target: &str) -> String {
     let mut result = String::with_capacity(svg.len());

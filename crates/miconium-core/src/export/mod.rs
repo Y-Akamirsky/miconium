@@ -124,8 +124,6 @@ fn run_export(
     project_root: &Path,
     progress_tx: &mpsc::Sender<ExportProgress>,
 ) -> Result<(), ExportError> {
-    let colorizable_frame = pack.frames.colorizable.first().cloned();
-
     create_output_tree(output_path, export_cfg.generate_16_symlinks)?;
 
     let signs = pack.all_signs();
@@ -136,49 +134,33 @@ fn run_export(
         let ov = category_overrides
             .get(category)
             .cloned()
-            .unwrap_or(match category.as_str() {
-                "devices" | "emblems" | "mime" | "places" => CategoryOverride {
-                    show_frame: false,
-                    show_accessories: false,
-                    selected_frame: None,
-                    selected_accessories: Vec::new(),
-                },
-                _ => CategoryOverride {
-                    show_frame: true,
-                    show_accessories: true,
-                    selected_frame: None,
-                    selected_accessories: Vec::new(),
-                },
-            });
+            .unwrap_or_else(|| crate::config::default_category_override(category));
 
-        let frame_ref: Option<crate::pack::LayerData> = if ov.show_frame {
-            colorizable_frame.clone()
+        let (frame_data, frame_is_static) = resolve_frame(&ov, pack)?;
+
+        let accessories: Vec<crate::pack::LayerData> = if ov.show_accessories {
+            if ov.selected_accessories.is_empty() {
+                pack.accessories.clone()
+            } else {
+                pack.accessories
+                    .iter()
+                    .filter(|a| ov.selected_accessories.contains(&a.name))
+                    .cloned()
+                    .collect()
+            }
         } else {
-            Some(crate::pack::LayerData {
-                svg_content: String::new(),
-                name: "none".into(),
-            })
-        };
-
-        let Some(frame_data) = &frame_ref else {
-            return Err(ExportError::NoFrames);
+            Vec::new()
         };
 
         for sign in icons {
-            let accessories: &[crate::pack::LayerData] = if ov.show_accessories {
-                pack.accessories.as_slice()
-            } else {
-                &[]
-            };
-
             let assembled = svg_engine::assemble_icon(
-                frame_data,
+                &frame_data,
                 sign,
-                accessories,
+                &accessories,
                 palette,
                 ov.show_frame,
                 ov.show_accessories,
-                false,
+                frame_is_static,
                 1.0, 1.0, 1.0,
             )?;
             write_icon(output_path, category, &assembled, &sign.name)?;
@@ -196,6 +178,65 @@ fn run_export(
     write_meta_files(output_path, project_root)?;
 
     Ok(())
+}
+
+fn resolve_frame(ov: &CategoryOverride, pack: &Pack) -> Result<(crate::pack::LayerData, bool), ExportError> {
+    if !ov.show_frame {
+        return Ok((crate::pack::LayerData {
+            svg_content: String::new(),
+            name: "none".into(),
+        }, false));
+    }
+
+    match ov.frame_source.as_str() {
+        "static_dark" => {
+            if let Some(ref name) = ov.selected_static_frame {
+                if let Some(ref sf) = pack.frames.static_frames {
+                    if let Some(frame) = sf.dark.iter().find(|f| f.name == *name) {
+                        return Ok((frame.clone(), true));
+                    }
+                    eprintln!("Warning: static (dark) frame '{name}' not found, falling back");
+                }
+            }
+            if let Some(ref sf) = pack.frames.static_frames {
+                if let Some(frame) = sf.dark.first() {
+                    return Ok((frame.clone(), true));
+                }
+            }
+            eprintln!("Warning: no dark static frames available, falling back to colorizable");
+            let frame = pack.frames.colorizable.first().cloned().ok_or(ExportError::NoFrames)?;
+            Ok((frame, false))
+        }
+        "static_light" => {
+            if let Some(ref name) = ov.selected_static_frame {
+                if let Some(ref sf) = pack.frames.static_frames {
+                    if let Some(frame) = sf.light.iter().find(|f| f.name == *name) {
+                        return Ok((frame.clone(), true));
+                    }
+                    eprintln!("Warning: static (light) frame '{name}' not found, falling back");
+                }
+            }
+            if let Some(ref sf) = pack.frames.static_frames {
+                if let Some(frame) = sf.light.first() {
+                    return Ok((frame.clone(), true));
+                }
+            }
+            eprintln!("Warning: no light static frames available, falling back to colorizable");
+            let frame = pack.frames.colorizable.first().cloned().ok_or(ExportError::NoFrames)?;
+            Ok((frame, false))
+        }
+        _ => {
+            let first_colorizable = pack.frames.colorizable.first();
+            if let Some(name) = ov.selected_frame.as_deref() {
+                if let Some(frame) = pack.frames.colorizable.iter().find(|f| f.name == name) {
+                    return Ok((frame.clone(), false));
+                }
+                eprintln!("Warning: frame '{name}' not found, falling back to first colorizable");
+            }
+            let frame = first_colorizable.cloned().ok_or(ExportError::NoFrames)?;
+            Ok((frame, false))
+        }
+    }
 }
 
 #[allow(clippy::implicit_hasher)]

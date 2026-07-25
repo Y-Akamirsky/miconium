@@ -57,30 +57,35 @@ pub struct CategoryOverride {
     pub selected_frame: Option<String>,
     #[serde(default)]
     pub selected_accessories: Vec<String>,
+    #[serde(default = "default_frame_source")]
+    pub frame_source: String,
+    #[serde(default)]
+    pub selected_static_frame: Option<String>,
 }
 
 fn default_true() -> bool { true }
 
+fn default_frame_source() -> String { "colorizable".into() }
+
+#[must_use]
+pub fn default_category_override(category: &str) -> CategoryOverride {
+    CategoryOverride {
+        show_frame: !matches!(category, "devices" | "emblems" | "mime" | "places"),
+        show_accessories: !matches!(category, "devices" | "emblems" | "mime" | "places"),
+        selected_frame: None,
+        selected_accessories: Vec::new(),
+        frame_source: default_frame_source(),
+        selected_static_frame: None,
+    }
+}
+
 impl PackConfig {
     #[must_use]
     pub fn category_override(&self, category: &str) -> CategoryOverride {
-        if let Some(ov) = self.category_overrides.get(category) {
-            return ov.clone();
-        }
-        match category {
-            "devices" | "emblems" | "mime" | "places" => CategoryOverride {
-                show_frame: false,
-                show_accessories: false,
-                selected_frame: None,
-                selected_accessories: Vec::new(),
-            },
-            _ => CategoryOverride {
-                show_frame: true,
-                show_accessories: true,
-                selected_frame: None,
-                selected_accessories: Vec::new(),
-            },
-        }
+        self.category_overrides
+            .get(category)
+            .cloned()
+            .unwrap_or_else(|| default_category_override(category))
     }
 }
 

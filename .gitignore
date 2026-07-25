@@ -1,9 +1,10 @@
 index.theme
 opencode.*
-AGENTS.md
 packs/
 target/
 tui.json
 debug/
 CACHEDIR.TAG
+AGENTS.md
 TO_FIX.md
+.ignore
