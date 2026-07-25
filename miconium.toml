@@ -1,0 +1,15 @@
+[pack]
+path = "packs/mono"
+name = "mono"
+
+[colors]
+# scheme = "~/.themes/my.colors"
+# matugen = "/tmp/matugen.json"
+# manual = "~/.config/miconium/colors.toml"
+
+[export]
+output = "~/.local/share/icons/Miconium"
+
+[gui]
+window_width = 800
+window_height = 600
