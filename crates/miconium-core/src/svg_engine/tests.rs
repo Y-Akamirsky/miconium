@@ -9,7 +9,7 @@ const SIGN_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2
 </svg>"#;
 
 const ACCESSORY_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <rect x="4" y="4" width="40" height="40" rx="10" fill="currentSurface" opacity="0.3"/>
+  <rect x="4" y="4" width="40" height="40" rx="10" fill="currentAccent" opacity="0.3"/>
 </svg>"#;
 
 fn make_layer(svg: &str, name: &str) -> LayerData {
@@ -62,7 +62,7 @@ fn extract_viewbox_invalid_svg() {
 #[test]
 fn merge_two_layers() {
     let layers = vec![make_layer(FRAME_SVG, "frame"), make_layer(SIGN_SVG, "sign")];
-    let merged = merge_layers(&layers).unwrap();
+    let merged = merge_layers(&layers, &[]).unwrap();
     assert!(merged.starts_with("<svg"));
     assert!(merged.ends_with("</svg>"));
     assert!(merged.contains(r#"viewBox="0 0 48 48""#));
@@ -75,7 +75,7 @@ fn merge_two_layers() {
 #[test]
 fn merge_single_layer() {
     let layers = vec![make_layer(FRAME_SVG, "frame")];
-    let merged = merge_layers(&layers).unwrap();
+    let merged = merge_layers(&layers, &[]).unwrap();
     assert!(merged.contains("rect"));
     assert!(merged.contains(r#"id="layer-0""#));
 }
@@ -83,7 +83,7 @@ fn merge_single_layer() {
 #[test]
 fn merge_no_layers() {
     let layers: Vec<LayerData> = vec![];
-    let err = merge_layers(&layers).unwrap_err();
+    let err = merge_layers(&layers, &[]).unwrap_err();
     assert!(matches!(err, SvgError::NoLayers));
 }
 
@@ -94,7 +94,7 @@ fn merge_with_empty_layer() {
         "empty",
     );
     let layers = vec![make_layer(FRAME_SVG, "frame"), empty];
-    let merged = merge_layers(&layers).unwrap();
+    let merged = merge_layers(&layers, &[]).unwrap();
     assert!(merged.contains(r#"id="layer-0""#));
 }
 
@@ -104,28 +104,24 @@ fn inject_colors_replaces_placeholders() {
         foreground: "#ffffff".into(),
         background: "#000000".into(),
         accent: "#ff0000".into(),
-        surface: "#333333".into(),
-        error: "#ff00ff".into(),
     };
     let svg = concat!(
         r#"<rect fill="currentForeground" stroke="currentBackground"/> "#,
         r#"<circle fill="currentAccent"/> "#,
-        r#"<path fill="currentSurface"/> "#,
-        r#"<text fill="currentError"/>"#,
+        r#"<path fill="currentColor"/>"#,
     );
-    let result = inject_colors(svg, &palette);
+    let result = inject_colors(svg, &palette, false);
     assert!(result.contains(r##"fill="#ffffff""##));
     assert!(result.contains(r##"stroke="#000000""##));
     assert!(result.contains(r##"fill="#ff0000""##));
-    assert!(result.contains(r##"fill="#333333""##));
-    assert!(result.contains(r##"fill="#ff00ff""##));
+    assert!(result.contains(r##"fill="#ffffff""##));
 }
 
 #[test]
 fn inject_colors_preserves_unknown_tokens() {
     let palette = Palette::default();
     let svg = r#"<rect fill="currentColor" unknown="someToken"/>"#;
-    let result = inject_colors(svg, &palette);
+    let result = inject_colors(svg, &palette, false);
     assert!(result.contains(r##"fill="#ffffff""##));
     assert!(result.contains(r#"unknown="someToken""#));
 }
@@ -137,7 +133,7 @@ fn assemble_icon_combines_all_layers() {
     let acc = make_layer(ACCESSORY_SVG, "shadow");
     let palette = Palette::default();
 
-    let icon = assemble_icon(&frame, &sign, &[acc], &palette).unwrap();
+    let icon = assemble_icon(&frame, &sign, &[acc], &palette, true, true, false, 1.0, 1.0, 1.0).unwrap();
     assert_eq!(icon.name, "frame_default_apps_firefox");
     assert!(icon.svg.contains("rect"));
     assert!(icon.svg.contains("circle"));
@@ -153,7 +149,7 @@ fn assemble_icon_no_accessories() {
     let sign = make_layer(SIGN_SVG, "sign");
     let palette = Palette::default();
 
-    let icon = assemble_icon(&frame, &sign, &[], &palette).unwrap();
+    let icon = assemble_icon(&frame, &sign, &[], &palette, true, true, false, 1.0, 1.0, 1.0).unwrap();
     assert!(icon.svg.contains("rect"));
     assert!(icon.svg.contains("circle"));
     assert_eq!(icon.svg.matches("</g>").count(), 2);
@@ -177,7 +173,7 @@ fn assemble_single_injects_colors() {
 #[test]
 fn merge_layers_preserves_svg_structure() {
     let layers = vec![make_layer(FRAME_SVG, "frame"), make_layer(SIGN_SVG, "sign")];
-    let merged = merge_layers(&layers).unwrap();
+    let merged = merge_layers(&layers, &[]).unwrap();
     let doc = roxmltree::Document::parse(&merged).unwrap();
     assert_eq!(doc.root_element().tag_name().name(), "svg");
     let children: Vec<_> = doc
@@ -197,6 +193,6 @@ fn inject_colors_multiple_occurrences() {
         ..Palette::default()
     };
     let svg = r#"<path fill="currentColor"/><circle fill="currentColor"/>"#;
-    let result = inject_colors(svg, &palette);
+    let result = inject_colors(svg, &palette, false);
     assert_eq!(result.matches(r##"fill="#ff0000""##).count(), 2);
 }

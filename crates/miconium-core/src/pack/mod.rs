@@ -105,15 +105,20 @@ impl Pack {
 
     #[must_use]
     pub fn get_signs_by_category(&self, category: &str) -> Vec<LayerData> {
+        self.signs_by_category_ref(category).to_vec()
+    }
+
+    #[must_use]
+    pub fn signs_by_category_ref(&self, category: &str) -> &[LayerData] {
         match category {
-            "apps" => self.signs.apps.clone(),
-            "categories" => self.signs.categories.clone(),
-            "devices" => self.signs.devices.clone(),
-            "emblems" => self.signs.emblems.clone(),
-            "mime" => self.signs.mime.clone(),
-            "preferences" => self.signs.preferences.clone(),
-            "status" => self.signs.status.clone(),
-            _ => Vec::new(),
+            "apps" => &self.signs.apps,
+            "categories" => &self.signs.categories,
+            "devices" => &self.signs.devices,
+            "emblems" => &self.signs.emblems,
+            "mime" => &self.signs.mime,
+            "preferences" => &self.signs.preferences,
+            "status" => &self.signs.status,
+            _ => &[],
         }
     }
 

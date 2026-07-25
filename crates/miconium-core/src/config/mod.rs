@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -28,6 +29,8 @@ pub struct PackConfig {
     pub path: Option<String>,
     #[serde(default = "default_pack_name")]
     pub name: String,
+    #[serde(default)]
+    pub category_overrides: HashMap<String, CategoryOverride>,
 }
 
 fn default_pack_name() -> String {
@@ -39,6 +42,44 @@ impl Default for PackConfig {
         Self {
             path: None,
             name: default_pack_name(),
+            category_overrides: HashMap::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct CategoryOverride {
+    #[serde(default = "default_true")]
+    pub show_frame: bool,
+    #[serde(default = "default_true")]
+    pub show_accessories: bool,
+    #[serde(default)]
+    pub selected_frame: Option<String>,
+    #[serde(default)]
+    pub selected_accessories: Vec<String>,
+}
+
+fn default_true() -> bool { true }
+
+impl PackConfig {
+    #[must_use]
+    pub fn category_override(&self, category: &str) -> CategoryOverride {
+        if let Some(ov) = self.category_overrides.get(category) {
+            return ov.clone();
+        }
+        match category {
+            "devices" | "emblems" | "mime" | "places" => CategoryOverride {
+                show_frame: false,
+                show_accessories: false,
+                selected_frame: None,
+                selected_accessories: Vec::new(),
+            },
+            _ => CategoryOverride {
+                show_frame: true,
+                show_accessories: true,
+                selected_frame: None,
+                selected_accessories: Vec::new(),
+            },
         }
     }
 }
@@ -57,8 +98,6 @@ pub struct ColorOverrides {
     pub foreground: Option<String>,
     pub background: Option<String>,
     pub accent: Option<String>,
-    pub surface: Option<String>,
-    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

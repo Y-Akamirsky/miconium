@@ -20,8 +20,6 @@ pub struct Palette {
     pub foreground: String,
     pub background: String,
     pub accent: String,
-    pub surface: String,
-    pub error: String,
 }
 
 impl Default for Palette {
@@ -30,8 +28,6 @@ impl Default for Palette {
             foreground: "#ffffff".into(),
             background: "#1e1e2e".into(),
             accent: "#89b4fa".into(),
-            surface: "#313244".into(),
-            error: "#f38ba8".into(),
         }
     }
 }
@@ -47,12 +43,6 @@ impl Palette {
         }
         if let Some(c) = &overrides.accent {
             self.accent.clone_from(c);
-        }
-        if let Some(c) = &overrides.surface {
-            self.surface.clone_from(c);
-        }
-        if let Some(c) = &overrides.error {
-            self.error.clone_from(c);
         }
         self
     }
@@ -136,17 +126,11 @@ pub fn parse_matugen_json(path: &str) -> Result<Palette, ColorError> {
         if let Some(primary) = colors.get("primary").and_then(|v| v.as_str()) {
             palette.accent = format!("#{primary}");
         }
-        if let Some(surface) = colors.get("surface").and_then(|v| v.as_str()) {
-            palette.surface = format!("#{surface}");
-        }
         if let Some(background) = colors.get("background").and_then(|v| v.as_str()) {
             palette.background = format!("#{background}");
         }
         if let Some(on_background) = colors.get("on_background").and_then(|v| v.as_str()) {
             palette.foreground = format!("#{on_background}");
-        }
-        if let Some(error) = colors.get("error").and_then(|v| v.as_str()) {
-            palette.error = format!("#{error}");
         }
     }
 
@@ -175,7 +159,6 @@ pub fn parse_manual_toml(path: &str) -> Result<Palette, ColorError> {
     }
     if let Some(bottom) = &parsed.manual.bottom {
         palette.background.clone_from(bottom);
-        palette.surface.clone_from(bottom);
     }
 
     Ok(palette)

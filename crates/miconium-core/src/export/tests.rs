@@ -1,9 +1,14 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::mpsc;
 
 use crate::config::ExportConfig;
 use crate::export::export_pack;
 use crate::pack::Pack;
+
+fn empty_overrides() -> HashMap<String, crate::config::CategoryOverride> {
+    HashMap::new()
+}
 
 fn sample_svg() -> String {
     r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" fill="currentColor"/></svg>"#.into()
@@ -42,7 +47,7 @@ fn export_to_tempdir() {
     let export_cfg = test_export_config(out_dir.path().to_string_lossy().to_string());
 
     let (tx, rx) = mpsc::channel();
-    export_pack(&pack, &palette, &export_cfg, project_root.path(), &tx).unwrap();
+    export_pack(&pack, &palette, &export_cfg, &empty_overrides(), project_root.path(), &tx).unwrap();
 
     assert!(out_dir.path().join("apps/scalable/firefox.svg").exists(), "apps/scalable/firefox.svg should exist");
     assert!(out_dir.path().join("status/scalable/battery.svg").exists(), "status/scalable/battery.svg should exist");
@@ -67,7 +72,7 @@ fn export_writes_valid_svg() {
     let export_cfg = test_export_config(out_dir.path().to_string_lossy().to_string());
 
     let (tx, _rx) = mpsc::channel();
-    export_pack(&pack, &palette, &export_cfg, project_root.path(), &tx).unwrap();
+    export_pack(&pack, &palette, &export_cfg, &empty_overrides(), project_root.path(), &tx).unwrap();
 
     let svg_path = out_dir.path().join("apps/scalable/firefox.svg");
     assert!(svg_path.exists(), "{:?} does not exist", svg_path);
@@ -91,6 +96,6 @@ fn export_no_frames_error() {
     let export_cfg = test_export_config(out_dir.path().to_string_lossy().to_string());
 
     let (tx, _rx) = mpsc::channel();
-    let err = export_pack(&pack, &palette, &export_cfg, project_root.path(), &tx).unwrap_err();
+    let err = export_pack(&pack, &palette, &export_cfg, &empty_overrides(), project_root.path(), &tx).unwrap_err();
     assert!(matches!(err, crate::export::ExportError::NoFrames));
 }

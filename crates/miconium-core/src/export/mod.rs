@@ -1,8 +1,9 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 
 use crate::color::Palette;
-use crate::config::ExportConfig;
+use crate::config::{CategoryOverride, ExportConfig};
 use crate::pack::Pack;
 use crate::svg_engine;
 
@@ -58,6 +59,7 @@ fn category_to_output_dir(category: &str) -> &str {
 }
 
 fn create_output_tree(output: &Path, with_symlinks: bool) -> Result<(), ExportError> {
+    std::fs::create_dir_all(output)?;
     let categories = [
         "actions", "apps", "categories", "devices", "emblems",
         "mimetypes", "places", "preferences", "status",
@@ -113,32 +115,73 @@ fn write_icon(output: &Path, category: &str, icon: &svg_engine::AssembledIcon, f
     Ok(())
 }
 
-pub fn export_pack(
+fn run_export(
+    output_path: &Path,
     pack: &Pack,
     palette: &Palette,
     export_cfg: &ExportConfig,
+    category_overrides: &HashMap<String, CategoryOverride>,
     project_root: &Path,
     progress_tx: &mpsc::Sender<ExportProgress>,
 ) -> Result<(), ExportError> {
-    let output_path = resolve_output_path(export_cfg);
+    let colorizable_frame = pack.frames.colorizable.first().cloned();
 
-    let frame = pack
-        .frames
-        .colorizable
-        .first()
-        .cloned()
-        .ok_or(ExportError::NoFrames)?;
-
-    create_output_tree(&output_path, export_cfg.generate_16_symlinks)?;
+    create_output_tree(output_path, export_cfg.generate_16_symlinks)?;
 
     let signs = pack.all_signs();
     let total_icons: usize = signs.values().map(Vec::len).sum();
     let mut processed = 0usize;
 
     for (category, icons) in &signs {
+        let ov = category_overrides
+            .get(category)
+            .cloned()
+            .unwrap_or(match category.as_str() {
+                "devices" | "emblems" | "mime" | "places" => CategoryOverride {
+                    show_frame: false,
+                    show_accessories: false,
+                    selected_frame: None,
+                    selected_accessories: Vec::new(),
+                },
+                _ => CategoryOverride {
+                    show_frame: true,
+                    show_accessories: true,
+                    selected_frame: None,
+                    selected_accessories: Vec::new(),
+                },
+            });
+
+        let frame_ref: Option<crate::pack::LayerData> = if ov.show_frame {
+            colorizable_frame.clone()
+        } else {
+            Some(crate::pack::LayerData {
+                svg_content: String::new(),
+                name: "none".into(),
+            })
+        };
+
+        let Some(frame_data) = &frame_ref else {
+            return Err(ExportError::NoFrames);
+        };
+
         for sign in icons {
-            let assembled = svg_engine::assemble_icon(&frame, sign, &pack.accessories, palette)?;
-            write_icon(&output_path, category, &assembled, &sign.name)?;
+            let accessories: &[crate::pack::LayerData] = if ov.show_accessories {
+                pack.accessories.as_slice()
+            } else {
+                &[]
+            };
+
+            let assembled = svg_engine::assemble_icon(
+                frame_data,
+                sign,
+                accessories,
+                palette,
+                ov.show_frame,
+                ov.show_accessories,
+                false,
+                1.0, 1.0, 1.0,
+            )?;
+            write_icon(output_path, category, &assembled, &sign.name)?;
 
             processed += 1;
             let _ = progress_tx.send(ExportProgress {
@@ -150,23 +193,47 @@ pub fn export_pack(
         }
     }
 
-    write_meta_files(&output_path, project_root)?;
+    write_meta_files(output_path, project_root)?;
 
     Ok(())
 }
 
+#[allow(clippy::implicit_hasher)]
+pub fn export_pack(
+    pack: &Pack,
+    palette: &Palette,
+    export_cfg: &ExportConfig,
+    category_overrides: &HashMap<String, CategoryOverride>,
+    project_root: &Path,
+    progress_tx: &mpsc::Sender<ExportProgress>,
+) -> Result<(), ExportError> {
+    let output_path = resolve_output_path(export_cfg);
+
+    match run_export(&output_path, pack, palette, export_cfg, category_overrides, project_root, progress_tx) {
+        Ok(()) => Ok(()),
+        Err(ExportError::Io(_)) => {
+            let fallback = PathBuf::from("/tmp/miconium-export");
+            eprintln!("Export: IO error on {}, retrying with {}", output_path.display(), fallback.display());
+            run_export(&fallback, pack, palette, export_cfg, category_overrides, project_root, progress_tx)
+        }
+        Err(e) => Err(e),
+    }
+}
+
 fn resolve_output_path(config: &ExportConfig) -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let fallback = || PathBuf::from("/tmp/miconium-export");
     if let Some(path) = &config.output {
         if path.starts_with('~') {
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-            let mut buf = PathBuf::from(home);
+            let mut buf = if home.is_empty() { return fallback(); } else { PathBuf::from(&home) };
             buf.push(path.strip_prefix('~').unwrap_or(""));
             buf
         } else {
             PathBuf::from(path)
         }
+    } else if home.is_empty() {
+        fallback()
     } else {
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
         PathBuf::from(home).join(".local/share/icons/Miconium")
     }
 }

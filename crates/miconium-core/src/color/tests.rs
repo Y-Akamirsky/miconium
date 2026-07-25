@@ -58,7 +58,6 @@ fn parse_manual_toml_file() {
     std::fs::write(&path, MANUAL_TOML).unwrap();
     let palette = parse_manual_toml(&path.to_string_lossy()).unwrap();
     assert_eq!(palette.background, "#282828");
-    assert_eq!(palette.surface, "#282828");
     assert_eq!(palette.accent, "#FFA700");
 }
 
@@ -116,8 +115,6 @@ fn resolve_palette_applies_overrides() {
         foreground: Some("#ff0000".into()),
         background: None,
         accent: None,
-        surface: None,
-        error: None,
     });
 
     let palette = resolve_palette(&config).unwrap();
@@ -140,8 +137,6 @@ fn palette_apply_overrides_none() {
         foreground: None,
         background: None,
         accent: None,
-        surface: None,
-        error: None,
     };
     let result = palette.apply_overrides(&overrides);
     assert_eq!(result.foreground, Palette::default().foreground);
@@ -154,8 +149,6 @@ fn palette_apply_overrides_partial() {
         foreground: Some("#111111".into()),
         background: None,
         accent: None,
-        surface: None,
-        error: None,
     };
     let result = palette.apply_overrides(&overrides);
     assert_eq!(result.foreground, "#111111");
@@ -181,8 +174,6 @@ fn parse_matugen_json_basic() {
     .unwrap();
     let palette = parse_matugen_json(&path.to_string_lossy()).unwrap();
     assert_eq!(palette.accent, "#89b4fa");
-    assert_eq!(palette.surface, "#313244");
     assert_eq!(palette.background, "#1e1e2e");
     assert_eq!(palette.foreground, "#cdd6f4");
-    assert_eq!(palette.error, "#f38ba8");
 }

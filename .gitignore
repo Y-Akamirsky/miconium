@@ -6,3 +6,4 @@ target/
 tui.json
 debug/
 CACHEDIR.TAG
+TO_FIX.md
