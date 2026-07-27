@@ -104,7 +104,8 @@ fn build_svg_tag(
     format!("<svg {attrs}>{body}</svg>")
 }
 
-/// Collect unique `xmlns:*` declarations from an SVG.
+/// Collect unique `xmlns:*` declarations (prefixed only) from an SVG.
+/// The default `xmlns` is omitted because `build_svg_tag` already adds it.
 fn collect_namespaces(svg: &str) -> Vec<String> {
     let mut decls: Vec<String> = Vec::new();
     if let Some(start) = svg.find("<svg") {
@@ -112,7 +113,7 @@ fn collect_namespaces(svg: &str) -> Vec<String> {
             let open_tag = &svg[start..=start + end];
             for attr in open_tag.split_whitespace() {
                 let attr = attr.trim_end_matches('/').trim_end_matches('>');
-                if attr.starts_with("xmlns") {
+                if attr.starts_with("xmlns:") {
                     let prefix = attr.split('=').next().unwrap_or(attr);
                     if !decls.iter().any(|d| d.starts_with(prefix)) {
                         decls.push(attr.to_string());

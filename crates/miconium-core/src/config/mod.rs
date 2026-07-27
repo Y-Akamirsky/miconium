@@ -30,7 +30,9 @@ pub struct PackConfig {
     #[serde(default = "default_pack_name")]
     pub name: String,
     #[serde(default)]
-    pub category_overrides: HashMap<String, CategoryOverride>,
+    pub category_overrides: HashMap<String, HashMap<String, CategoryOverride>>,
+    #[serde(default)]
+    pub selected_variants: HashMap<String, String>,
 }
 
 fn default_pack_name() -> String {
@@ -43,6 +45,7 @@ impl Default for PackConfig {
             path: None,
             name: default_pack_name(),
             category_overrides: HashMap::new(),
+            selected_variants: HashMap::new(),
         }
     }
 }
@@ -61,31 +64,51 @@ pub struct CategoryOverride {
     pub frame_source: String,
     #[serde(default)]
     pub selected_static_frame: Option<String>,
+    #[serde(default = "default_scale")]
+    pub frame_scale: f64,
+    #[serde(default = "default_scale")]
+    pub icon_scale: f64,
+    #[serde(default = "default_scale")]
+    pub acc_scale: f64,
 }
 
 fn default_true() -> bool { true }
 
 fn default_frame_source() -> String { "colorizable".into() }
 
+fn default_scale() -> f64 { 1.0 }
+
 #[must_use]
-pub fn default_category_override(category: &str) -> CategoryOverride {
+pub fn default_category_override(_category: &str) -> CategoryOverride {
     CategoryOverride {
-        show_frame: !matches!(category, "devices" | "emblems" | "mime" | "places"),
-        show_accessories: !matches!(category, "devices" | "emblems" | "mime" | "places"),
+        show_frame: false,
+        show_accessories: false,
         selected_frame: None,
         selected_accessories: Vec::new(),
         frame_source: default_frame_source(),
         selected_static_frame: None,
+        frame_scale: 1.0,
+        icon_scale: 1.0,
+        acc_scale: 1.0,
     }
 }
 
 impl PackConfig {
     #[must_use]
-    pub fn category_override(&self, category: &str) -> CategoryOverride {
+    pub fn variant_override(&self, category: &str, variant: &str) -> CategoryOverride {
         self.category_overrides
             .get(category)
+            .and_then(|v| v.get(variant))
             .cloned()
             .unwrap_or_else(|| default_category_override(category))
+    }
+
+    #[must_use]
+    pub fn selected_variant(&self, category: &str) -> String {
+        self.selected_variants
+            .get(category)
+            .cloned()
+            .unwrap_or_else(|| "scalable".into())
     }
 }
 
@@ -110,7 +133,6 @@ pub struct ColorOverrides {
 pub struct ExportConfig {
     pub output: Option<String>,
     pub sizes: Vec<u32>,
-    pub generate_16_symlinks: bool,
     pub frame_scale: f64,
     pub icon_scale: f64,
     pub acc_scale: f64,
@@ -121,7 +143,6 @@ impl Default for ExportConfig {
         Self {
             output: None,
             sizes: vec![16, 24, 32, 48, 64, 96, 128, 256, 512],
-            generate_16_symlinks: true,
             frame_scale: 1.0,
             icon_scale: 1.0,
             acc_scale: 1.0,

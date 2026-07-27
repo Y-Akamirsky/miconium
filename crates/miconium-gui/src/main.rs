@@ -26,6 +26,8 @@ struct AppData {
     sidebar: Option<gtk::Box>,
     scale_frame: Option<gtk::Frame>,
     categories_frame: Option<gtk::Frame>,
+    active_category: Option<String>,
+    preview_sign_name: Option<String>,
 }
 
 impl AppData {
@@ -61,6 +63,8 @@ fn build_ui(app: &gtk::Application) {
         sidebar: None,
         scale_frame: None,
         categories_frame: None,
+        active_category: None,
+        preview_sign_name: None,
     }));
 
     let window = gtk::ApplicationWindow::new(app);
@@ -90,9 +94,6 @@ fn build_ui(app: &gtk::Application) {
 
     let right_area = build_right_area(&data);
     paned.pack2(&right_area, true, false);
-
-    // SAFETY: data lives for the entire GTK app lifetime
-    unsafe { window.set_data("app-data", data.clone()); }
 
     window.add(&paned);
     window.show_all();
@@ -273,7 +274,7 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
     let list = gtk::ListBox::new();
     list.set_selection_mode(gtk::SelectionMode::None);
 
-    let cats = ["actions", "apps", "categories", "devices", "emblems", "mime", "places", "preferences", "status"];
+    let cats = pack.categories();
     let frame_names: Vec<String> = pack.frames.colorizable.iter().map(|f| f.name.clone()).collect();
     let static_dark_names: Vec<String> = pack.frames.static_frames.as_ref().map_or(Vec::new(), |sf| {
         sf.dark.iter().map(|f| f.name.clone()).collect()
@@ -284,22 +285,71 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
     let has_static = pack.has_static_frames();
     let acc_names: Vec<String> = pack.accessories.iter().map(|a| a.name.clone()).collect();
 
-    for &cat in &cats {
+    for cat in &cats {
         let signs = pack.get_signs_by_category(cat);
         if signs.is_empty() {
             continue;
         }
+        let expander = gtk::Expander::new(Some(cat.as_str()));
+
+        let data_exp = Rc::downgrade(data);
+        let cat_exp = cat.to_string();
+        expander.connect_expanded_notify(move |ex: &gtk::Expander| {
+            if !ex.is_expanded() {
+                return;
+            }
+            let Some(data) = data_exp.upgrade() else { return };
+            let variant = data.borrow().config.pack.selected_variant(&cat_exp);
+            let pack = data.borrow().pack.clone();
+            let Some(pack) = pack else { return };
+            data.borrow_mut().active_category = Some(cat_exp.clone());
+            data.borrow_mut().preview_sign_name = pick_random_sign(&pack, &cat_exp, &variant);
+            rebuild_preview(&data);
+        });
+
         let row = gtk::Box::new(gtk::Orientation::Vertical, 2);
         row.set_margin(4);
 
-        let cat_label = gtk::Label::new(Some(cat));
-        cat_label.set_xalign(0.0);
-        row.pack_start(&cat_label, false, false, 0);
+        // Variant selector combo
+        let variants = pack.get_category_variants(cat);
+        let variant_combo = gtk::ComboBoxText::new();
+        for v in &variants {
+            variant_combo.append_text(v);
+        }
+        let initial_variant = d.config.pack.selected_variant(cat);
+        let initial_idx = variants.iter().position(|v| v == &initial_variant).unwrap_or(0);
+        #[allow(clippy::cast_possible_truncation)]
+        variant_combo.set_active(Some(initial_idx as u32));
+        row.pack_start(&variant_combo, false, false, 0);
+
+        // Scale row: 3 compact sliders
+        let scale_row = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+        let fr_adj = gtk::Adjustment::new(1.0, 0.1, 3.0, 0.05, 0.1, 0.0);
+        let ic_adj = gtk::Adjustment::new(1.0, 0.1, 3.0, 0.05, 0.1, 0.0);
+        let ac_adj = gtk::Adjustment::new(1.0, 0.1, 3.0, 0.05, 0.1, 0.0);
+        let fr_slider = gtk::Scale::new(gtk::Orientation::Horizontal, Some(&fr_adj));
+        fr_slider.set_digits(2);
+        fr_slider.set_size_request(80, -1);
+        let ic_slider = gtk::Scale::new(gtk::Orientation::Horizontal, Some(&ic_adj));
+        ic_slider.set_digits(2);
+        ic_slider.set_size_request(80, -1);
+        let ac_slider = gtk::Scale::new(gtk::Orientation::Horizontal, Some(&ac_adj));
+        ac_slider.set_digits(2);
+        ac_slider.set_size_request(80, -1);
+        let fr_lbl = gtk::Label::new(Some("Fr"));
+        let ic_lbl = gtk::Label::new(Some("Ic"));
+        let ac_lbl = gtk::Label::new(Some("Ac"));
+        scale_row.pack_start(&fr_lbl, false, false, 0);
+        scale_row.pack_start(&fr_slider, true, true, 0);
+        scale_row.pack_start(&ic_lbl, false, false, 0);
+        scale_row.pack_start(&ic_slider, true, true, 0);
+        scale_row.pack_start(&ac_lbl, false, false, 0);
+        scale_row.pack_start(&ac_slider, true, true, 0);
+        row.pack_start(&scale_row, false, false, 0);
 
         let frame_cb = gtk::CheckButton::with_label("Frame");
         row.pack_start(&frame_cb, false, false, 0);
 
-        // Frame source selector (only if pack has static frames)
         let source_combo = gtk::ComboBoxText::new();
         source_combo.append_text("colorizable");
         if has_static {
@@ -309,7 +359,6 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
         source_combo.set_active(Some(0));
         row.pack_start(&source_combo, false, false, 0);
 
-        // Frame name combo — populated based on source
         let frame_combo = gtk::ComboBoxText::new();
         populate_frame_combo(&frame_combo, &frame_names);
         row.pack_start(&frame_combo, false, false, 0);
@@ -325,11 +374,19 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
         acc_combo.set_active(Some(0));
         row.pack_start(&acc_combo, false, false, 0);
 
+        let current_variant = || {
+            variant_combo.active_text().unwrap_or_else(|| "scalable".into())
+        };
+
         // Restore saved state
         {
-            let ov = d.config.pack.category_override(cat);
+            let variant = current_variant();
+            let ov = d.config.pack.variant_override(cat, &variant);
             frame_cb.set_active(ov.show_frame);
             acc_cb.set_active(ov.show_accessories);
+            fr_slider.set_value(ov.frame_scale);
+            ic_slider.set_value(ov.icon_scale);
+            ac_slider.set_value(ov.acc_scale);
 
             let src_idx = match ov.frame_source.as_str() {
                 "static_dark" if has_static => 1,
@@ -338,7 +395,6 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
             };
             source_combo.set_active(Some(src_idx));
 
-            // Populate frame combo and select based on source
             let (pool_names, sel_name) = match ov.frame_source.as_str() {
                 "static_dark" => (&static_dark_names, ov.selected_static_frame.as_ref()),
                 "static_light" => (&static_light_names, ov.selected_static_frame.as_ref()),
@@ -353,22 +409,121 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
             }
         }
 
+        // Helper: get/save overrides for current variant
+        let cat_owned = cat.to_string();
+
+        // --- Signal: Variant combo ---
+        let data_v = Rc::downgrade(data);
+        let cat_v = cat_owned.clone();
+        let fn_fc_v = frame_names.clone();
+        let fn_dark_v = static_dark_names.clone();
+        let fn_light_v = static_light_names.clone();
+        let frame_combo_v = frame_combo.clone();
+        let source_combo_v = source_combo.clone();
+        let fr_slider_v = fr_slider.clone();
+        let ic_slider_v = ic_slider.clone();
+        let ac_slider_v = ac_slider.clone();
+        let frame_cb_v = frame_cb.clone();
+        let acc_cb_v = acc_cb.clone();
+        let acc_combo_v = acc_combo.clone();
+        variant_combo.connect_changed(move |combo| {
+            let Some(data) = data_v.upgrade() else { return };
+            let variant = combo.active_text().unwrap_or_else(|| "scalable".into());
+            data.borrow_mut().config.pack.selected_variants.insert(cat_v.clone(), variant.to_string());
+            let ov = data.borrow().config.pack.variant_override(&cat_v, &variant);
+            frame_cb_v.set_active(ov.show_frame);
+            acc_cb_v.set_active(ov.show_accessories);
+            fr_slider_v.set_value(ov.frame_scale);
+            ic_slider_v.set_value(ov.icon_scale);
+            ac_slider_v.set_value(ov.acc_scale);
+            let src_idx = match ov.frame_source.as_str() {
+                "static_dark" => 1,
+                "static_light" => 2,
+                _ => 0,
+            };
+            source_combo_v.set_active(Some(src_idx));
+            let (pool, _) = match ov.frame_source.as_str() {
+                "static_dark" => (&fn_dark_v, ov.selected_static_frame.as_ref()),
+                "static_light" => (&fn_light_v, ov.selected_static_frame.as_ref()),
+                _ => (&fn_fc_v, ov.selected_frame.as_ref()),
+            };
+            populate_frame_combo(&frame_combo_v, pool);
+            frame_combo_v.set_active(Some(0));
+            acc_combo_v.set_active(Some(0));
+            let pack = data.borrow().pack.clone();
+            if let Some(pack) = pack {
+                data.borrow_mut().preview_sign_name = pick_random_sign(&pack, &cat_v, &variant);
+            }
+            rebuild_preview(&data);
+        });
+
+        // --- Signal: Frame scale slider ---
+        let data_frs = Rc::downgrade(data);
+        let cat_frs = cat_owned.clone();
+        fr_slider.connect_value_changed(move |s| {
+            let Some(data) = data_frs.upgrade() else { return };
+            let variant = data.borrow().config.pack.selected_variant(&cat_frs);
+            let def = data.borrow().config.pack.variant_override(&cat_frs, &variant);
+            let mut d2 = data.borrow_mut();
+            let ov = d2.config.pack.category_overrides
+                .entry(cat_frs.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
+            ov.frame_scale = s.value();
+            drop(d2);
+            rebuild_preview(&data);
+        });
+
+        // --- Signal: Icon scale slider ---
+        let data_ics = Rc::downgrade(data);
+        let cat_ics = cat_owned.clone();
+        ic_slider.connect_value_changed(move |s| {
+            let Some(data) = data_ics.upgrade() else { return };
+            let variant = data.borrow().config.pack.selected_variant(&cat_ics);
+            let def = data.borrow().config.pack.variant_override(&cat_ics, &variant);
+            let mut d2 = data.borrow_mut();
+            let ov = d2.config.pack.category_overrides
+                .entry(cat_ics.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
+            ov.icon_scale = s.value();
+            drop(d2);
+            rebuild_preview(&data);
+        });
+
+        // --- Signal: Acc scale slider ---
+        let data_acs = Rc::downgrade(data);
+        let cat_acs = cat_owned.clone();
+        ac_slider.connect_value_changed(move |s| {
+            let Some(data) = data_acs.upgrade() else { return };
+            let variant = data.borrow().config.pack.selected_variant(&cat_acs);
+            let def = data.borrow().config.pack.variant_override(&cat_acs, &variant);
+            let mut d2 = data.borrow_mut();
+            let ov = d2.config.pack.category_overrides
+                .entry(cat_acs.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
+            ov.acc_scale = s.value();
+            drop(d2);
+            rebuild_preview(&data);
+        });
+
         // --- Signal: Frame checkbox ---
         let data_fc = Rc::downgrade(data);
-        let cat_fc = cat.to_string();
+        let cat_fc = cat_owned.clone();
         frame_cb.connect_toggled(move |cb| {
             let Some(data) = data_fc.upgrade() else { return };
-            let def = data.borrow().config.pack.category_override(&cat_fc);
+            let variant = data.borrow().config.pack.selected_variant(&cat_fc);
+            let def = data.borrow().config.pack.variant_override(&cat_fc, &variant);
             let mut d2 = data.borrow_mut();
-            let ov = d2.config.pack.category_overrides.entry(cat_fc.clone()).or_insert(category_override_defaults(&def));
+            let ov = d2.config.pack.category_overrides
+                .entry(cat_fc.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
             ov.show_frame = cb.is_active();
             drop(d2);
             rebuild_preview(&data);
         });
 
-        // --- Signal: Source combo (colorizable / static dark / static light) ---
+        // --- Signal: Source combo ---
         let data_src = Rc::downgrade(data);
-        let cat_src = cat.to_string();
+        let cat_src = cat_owned.clone();
         let fn_fc = frame_names.clone();
         let fn_dark = static_dark_names.clone();
         let fn_light = static_light_names.clone();
@@ -383,9 +538,12 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
             populate_frame_combo(&frame_combo_src, pool);
 
             let Some(data) = data_src.upgrade() else { return };
-            let def = data.borrow().config.pack.category_override(&cat_src);
+            let variant = data.borrow().config.pack.selected_variant(&cat_src);
+            let def = data.borrow().config.pack.variant_override(&cat_src, &variant);
             let mut d2 = data.borrow_mut();
-            let ov = d2.config.pack.category_overrides.entry(cat_src.clone()).or_insert(category_override_defaults(&def));
+            let ov = d2.config.pack.category_overrides
+                .entry(cat_src.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
             ov.frame_source = match active.as_str() {
                 "static dark" => "static_dark".into(),
                 "static light" => "static_light".into(),
@@ -399,12 +557,15 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
 
         // --- Signal: Frame combo ---
         let data_fcombo = Rc::downgrade(data);
-        let cat_fcombo = cat.to_string();
+        let cat_fcombo = cat_owned.clone();
         frame_combo.connect_changed(move |combo| {
             let Some(data) = data_fcombo.upgrade() else { return };
-            let def = data.borrow().config.pack.category_override(&cat_fcombo);
+            let variant = data.borrow().config.pack.selected_variant(&cat_fcombo);
+            let def = data.borrow().config.pack.variant_override(&cat_fcombo, &variant);
             let mut d2 = data.borrow_mut();
-            let ov = d2.config.pack.category_overrides.entry(cat_fcombo.clone()).or_insert(category_override_defaults(&def));
+            let ov = d2.config.pack.category_overrides
+                .entry(cat_fcombo.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
             let active = combo.active_text();
             match ov.frame_source.as_str() {
                 "static_dark" => {
@@ -423,12 +584,15 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
 
         // --- Signal: Accessories checkbox ---
         let data_accb = Rc::downgrade(data);
-        let cat_accb = cat.to_string();
+        let cat_accb = cat_owned.clone();
         acc_cb.connect_toggled(move |cb| {
             let Some(data) = data_accb.upgrade() else { return };
-            let def = data.borrow().config.pack.category_override(&cat_accb);
+            let variant = data.borrow().config.pack.selected_variant(&cat_accb);
+            let def = data.borrow().config.pack.variant_override(&cat_accb, &variant);
             let mut d2 = data.borrow_mut();
-            let ov = d2.config.pack.category_overrides.entry(cat_accb.clone()).or_insert(category_override_defaults(&def));
+            let ov = d2.config.pack.category_overrides
+                .entry(cat_accb.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
             ov.show_accessories = cb.is_active();
             drop(d2);
             rebuild_preview(&data);
@@ -436,12 +600,15 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
 
         // --- Signal: Accessories combo ---
         let data_acco = Rc::downgrade(data);
-        let cat_acco = cat.to_string();
+        let cat_acco = cat_owned.clone();
         acc_combo.connect_changed(move |combo| {
             let Some(data) = data_acco.upgrade() else { return };
-            let def = data.borrow().config.pack.category_override(&cat_acco);
+            let variant = data.borrow().config.pack.selected_variant(&cat_acco);
+            let def = data.borrow().config.pack.variant_override(&cat_acco, &variant);
             let mut d2 = data.borrow_mut();
-            let ov = d2.config.pack.category_overrides.entry(cat_acco.clone()).or_insert(category_override_defaults(&def));
+            let ov = d2.config.pack.category_overrides
+                .entry(cat_acco.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
             let active = combo.active_text();
             match active.as_deref() {
                 None | Some("all") => ov.selected_accessories.clear(),
@@ -454,7 +621,8 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
             rebuild_preview(&data);
         });
 
-        list.add(&row);
+        expander.add(&row);
+        list.add(&expander);
     }
 
     frame.add(&list);
@@ -479,6 +647,9 @@ fn category_override_defaults(def: &miconium_core::config::CategoryOverride) -> 
         selected_accessories: Vec::new(),
         frame_source: def.frame_source.clone(),
         selected_static_frame: None,
+        frame_scale: def.frame_scale,
+        icon_scale: def.icon_scale,
+        acc_scale: def.acc_scale,
     }
 }
 
@@ -528,24 +699,38 @@ fn choose_pack(
     chooser.show_all();
 }
 
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn random_usize(max: usize) -> usize {
+    if max == 0 {
+        return 0;
+    }
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    (seed as usize) % max
+}
+
+fn pick_random_sign(pack: &Pack, category: &str, variant: &str) -> Option<String> {
+    let signs = pack.get_sign_variant(category, variant);
+    if signs.is_empty() {
+        return None;
+    }
+    let idx = random_usize(signs.len());
+    Some(signs[idx].name.clone())
+}
+
+fn pick_random_category(pack: &Pack) -> Option<String> {
+    let cats = pack.categories();
+    if cats.is_empty() {
+        return None;
+    }
+    let idx = random_usize(cats.len());
+    Some(cats[idx].clone())
+}
+
 fn rebuild_preview(data: &Rc<RefCell<AppData>>) {
-    let name = {
-        let d = data.borrow();
-        d.pack.as_ref().and_then(|p| {
-            p.get_signs_by_category("actions")
-                .into_iter()
-                .chain(p.get_signs_by_category("apps"))
-                .chain(p.get_signs_by_category("categories"))
-                .chain(p.get_signs_by_category("devices"))
-                .chain(p.get_signs_by_category("emblems"))
-                .chain(p.get_signs_by_category("mime"))
-                .chain(p.get_signs_by_category("places"))
-                .chain(p.get_signs_by_category("preferences"))
-                .chain(p.get_signs_by_category("status"))
-                .next()
-                .map(|s| s.name.clone())
-        })
-    };
+    let name = data.borrow().preview_sign_name.clone();
     if let Some(name) = name {
         preview_icon(data, &name);
     }
@@ -760,161 +945,15 @@ fn find_frame_by_name(pack: &Pack, name: Option<&str>) -> Option<miconium_core::
         })
 }
 
-#[allow(clippy::similar_names, clippy::too_many_lines)]
-#[allow(dead_code)]
-fn build_categories_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
-    let categories: Vec<(String, Vec<String>, Vec<String>)> = {
-        let d = data.borrow();
-        let Some(pack) = &d.pack else { return };
-    let cats = ["actions", "apps", "categories", "devices", "emblems", "mime", "places", "preferences", "status"];
-        cats.iter()
-            .filter(|c| !pack.get_signs_by_category(c).is_empty())
-            .map(|&c| {
-                let frames: Vec<String> = pack.frames.colorizable.iter().map(|f| f.name.clone()).collect();
-                let accs: Vec<String> = pack.accessories.iter().map(|a| a.name.clone()).collect();
-                (c.to_string(), frames, accs)
-            })
-            .collect()
-    };
-
-    if categories.is_empty() {
-        return;
-    }
-
-    let cat_frame = gtk::Frame::new(Some("Categories"));
-    let list = gtk::ListBox::new();
-    list.set_selection_mode(gtk::SelectionMode::None);
-
-    for (cat, frame_names, acc_names) in &categories {
-        let row = gtk::Box::new(gtk::Orientation::Vertical, 2);
-        row.set_margin(4);
-
-        let cat_label = gtk::Label::new(Some(cat));
-        cat_label.set_xalign(0.0);
-        row.pack_start(&cat_label, false, false, 0);
-
-        let frame_cb = gtk::CheckButton::with_label("Frame");
-        row.pack_start(&frame_cb, false, false, 0);
-
-        let frame_combo = gtk::ComboBoxText::new();
-        frame_combo.append_text("default");
-        for name in frame_names {
-            frame_combo.append_text(name);
-        }
-        frame_combo.set_active(Some(0));
-        row.pack_start(&frame_combo, false, false, 0);
-
-        let acc_cb = gtk::CheckButton::with_label("Accessories");
-        row.pack_start(&acc_cb, false, false, 0);
-
-        let acc_combo = gtk::ComboBoxText::new();
-        acc_combo.append_text("all");
-        for name in acc_names {
-            acc_combo.append_text(name);
-        }
-        acc_combo.set_active(Some(0));
-        row.pack_start(&acc_combo, false, false, 0);
-
-        {
-            let d = data.borrow();
-            let ov = d.config.pack.category_override(cat);
-            frame_cb.set_active(ov.show_frame);
-            acc_cb.set_active(ov.show_accessories);
-            if let Some(ref sf) = ov.selected_frame {
-                if let Some(idx) = frame_names.iter().position(|n| n == sf) {
-                    #[allow(clippy::cast_possible_truncation)]
-                    frame_combo.set_active(Some(idx as u32 + 1));
-                }
-            }
-            if let Some(single) = ov.selected_accessories.first() {
-                if let Some(idx) = acc_names.iter().position(|n| n == single) {
-                    #[allow(clippy::cast_possible_truncation)]
-                    acc_combo.set_active(Some(idx as u32 + 1));
-                }
-            }
-        }
-
-        let data_fc = Rc::downgrade(data);
-        let cat_fc = cat.clone();
-        frame_cb.connect_toggled(move |cb| {
-            let Some(data) = data_fc.upgrade() else { return };
-            let def = data.borrow().config.pack.category_override(&cat_fc);
-            let mut d = data.borrow_mut();
-            let ov = d.config.pack.category_overrides.entry(cat_fc.clone()).or_insert(category_override_defaults(&def));
-            ov.show_frame = cb.is_active();
-            drop(d);
-            rebuild_preview(&data);
-        });
-
-        let data_fcombo = Rc::downgrade(data);
-        let cat_fcombo = cat.clone();
-        frame_combo.connect_changed(move |combo| {
-            let Some(data) = data_fcombo.upgrade() else { return };
-            let def = data.borrow().config.pack.category_override(&cat_fcombo);
-            let mut d = data.borrow_mut();
-            let ov = d.config.pack.category_overrides.entry(cat_fcombo.clone()).or_insert(category_override_defaults(&def));
-            let active = combo.active_text();
-            ov.selected_frame = active.filter(|t| t != "default").map(String::from);
-            drop(d);
-            rebuild_preview(&data);
-        });
-
-        let data_accb = Rc::downgrade(data);
-        let cat_accb = cat.clone();
-        acc_cb.connect_toggled(move |cb| {
-            let Some(data) = data_accb.upgrade() else { return };
-            let def = data.borrow().config.pack.category_override(&cat_accb);
-            let mut d = data.borrow_mut();
-            let ov = d.config.pack.category_overrides.entry(cat_accb.clone()).or_insert(category_override_defaults(&def));
-            ov.show_accessories = cb.is_active();
-            drop(d);
-            rebuild_preview(&data);
-        });
-
-        let data_acco = Rc::downgrade(data);
-        let cat_acco = cat.clone();
-        acc_combo.connect_changed(move |combo| {
-            let Some(data) = data_acco.upgrade() else { return };
-            let def = data.borrow().config.pack.category_override(&cat_acco);
-            let mut d = data.borrow_mut();
-            let ov = d.config.pack.category_overrides.entry(cat_acco.clone()).or_insert(category_override_defaults(&def));
-            let active = combo.active_text();
-            match active.as_deref() {
-                None | Some("all") => ov.selected_accessories.clear(),
-                Some(name) => {
-                    ov.selected_accessories.clear();
-                    ov.selected_accessories.push(name.to_string());
-                }
-            }
-            drop(d);
-            rebuild_preview(&data);
-        });
-
-        list.add(&row);
-    }
-
-    let scrolled = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
-    scrolled.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
-    scrolled.set_max_content_height(400);
-    scrolled.add(&list);
-
-    cat_frame.add(&scrolled);
-    sidebar.pack_start(&cat_frame, false, false, 0);
-    data.borrow_mut().categories_frame = Some(cat_frame);
-}
 
 fn show_all_icons(data: &Rc<RefCell<AppData>>, parent: &gtk::Window) {
     let categories = {
         let d = data.borrow();
         let Some(pack) = &d.pack else { return };
-        let mut cats: Vec<(String, Vec<miconium_core::pack::LayerData>)> = Vec::new();
-        for cat in &["actions", "apps", "categories", "devices", "emblems", "mime", "places", "preferences", "status"] {
-            let signs = pack.get_signs_by_category(cat);
-            if !signs.is_empty() {
-                cats.push((cat.to_string(), signs));
-            }
-        }
-        cats
+        pack.categories().into_iter().filter_map(|cat| {
+            let signs = pack.get_signs_by_category(&cat);
+            if signs.is_empty() { None } else { Some((cat, signs)) }
+        }).collect::<Vec<_>>()
     };
 
     let win = gtk::Window::new(gtk::WindowType::Toplevel);
@@ -959,32 +998,25 @@ fn show_all_icons(data: &Rc<RefCell<AppData>>, parent: &gtk::Window) {
 }
 
 fn show_first_preview(data: &Rc<RefCell<AppData>>) {
-    let first_sign = {
+    let sign_name = {
         let d = data.borrow();
-        d.pack.as_ref().and_then(|p| {
-            p.get_signs_by_category("actions")
-                .into_iter()
-                .chain(p.get_signs_by_category("apps"))
-                .chain(p.get_signs_by_category("categories"))
-                .chain(p.get_signs_by_category("devices"))
-                .chain(p.get_signs_by_category("emblems"))
-                .chain(p.get_signs_by_category("mime"))
-                .chain(p.get_signs_by_category("places"))
-                .chain(p.get_signs_by_category("preferences"))
-                .chain(p.get_signs_by_category("status"))
-                .next()
-                .map(|s| s.name.clone())
-        })
+        let Some(pack) = &d.pack else { return };
+        let cat = pick_random_category(pack);
+        let Some(cat) = cat else { return };
+        let variant = d.config.pack.selected_variant(&cat);
+        pick_random_sign(pack, &cat, &variant)
     };
-    if let Some(name) = first_sign {
-        preview_icon(data, &name);
-    }
+    let Some(sign_name) = sign_name else { return };
+    data.borrow_mut().preview_sign_name = Some(sign_name);
+    rebuild_preview(data);
 }
 
-fn find_sign_category<'a>(pack: &'a Pack, name: &str) -> Option<(&'a str, miconium_core::pack::LayerData)> {
-    for cat in &["actions", "apps", "categories", "devices", "emblems", "mime", "places", "preferences", "status"] {
-        if let Some(sign) = pack.signs_by_category_ref(cat).iter().find(|s| s.name == name) {
-            return Some((cat, sign.clone()));
+fn find_sign_category(pack: &Pack, name: &str) -> Option<(String, String, miconium_core::pack::LayerData)> {
+    for cat in pack.categories() {
+        for variant in pack.get_category_variants(&cat) {
+            if let Some(sign) = pack.get_sign_variant(&cat, &variant).iter().find(|s| s.name == name) {
+                return Some((cat, variant, sign.clone()));
+            }
         }
     }
     None
@@ -994,9 +1026,11 @@ fn preview_icon(data: &Rc<RefCell<AppData>>, icon_name: &str) {
     let result = {
         let d = data.borrow();
         let Some(pack) = &d.pack else { return };
-        let Some((cat, sign)) = find_sign_category(pack, icon_name) else { return };
+        let Some((cat, _found_variant, _)) = find_sign_category(pack, icon_name) else { return };
+        let variant = d.config.pack.selected_variant(&cat);
+        let Some(sign) = pack.get_sign_variant(&cat, &variant).iter().find(|s| s.name == icon_name).cloned() else { return };
 
-        let ov = d.config.pack.category_override(cat);
+        let ov = d.config.pack.variant_override(&cat, &variant);
         let use_frame = ov.show_frame;
         let use_accessories = ov.show_accessories;
 
@@ -1045,7 +1079,7 @@ fn preview_icon(data: &Rc<RefCell<AppData>>, icon_name: &str) {
 
         let accessories = if use_accessories {
             if ov.selected_accessories.is_empty() {
-                pack.accessories.clone()
+                pack.accessories.iter().take(1).cloned().collect()
             } else {
                 pack.accessories.iter().filter(|a| ov.selected_accessories.contains(&a.name)).cloned().collect()
             }
@@ -1053,10 +1087,7 @@ fn preview_icon(data: &Rc<RefCell<AppData>>, icon_name: &str) {
             Vec::new()
         };
 
-        let fr_s = d.frame_scale;
-        let ic_s = d.icon_scale;
-        let ac_s = d.acc_scale;
-        match svg_engine::assemble_icon(&frame_data, &sign, &accessories, &d.palette, use_frame, use_accessories, frame_is_static, fr_s, ic_s, ac_s) {
+        match svg_engine::assemble_icon(&frame_data, &sign, &accessories, &d.palette, use_frame, use_accessories, frame_is_static, ov.frame_scale, ov.icon_scale, ov.acc_scale) {
             Ok(icon) => icon.svg,
             Err(e) => {
                 eprintln!("Preview: assemble_icon failed for '{icon_name}': {e}");

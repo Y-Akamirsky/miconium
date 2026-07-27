@@ -6,8 +6,26 @@ use crate::config::ExportConfig;
 use crate::export::export_pack;
 use crate::pack::Pack;
 
-fn empty_overrides() -> HashMap<String, crate::config::CategoryOverride> {
+fn empty_overrides() -> HashMap<String, HashMap<String, crate::config::CategoryOverride>> {
     HashMap::new()
+}
+
+fn overrides_with_frame() -> HashMap<String, HashMap<String, crate::config::CategoryOverride>> {
+    let mut cat = HashMap::new();
+    cat.insert("scalable".into(), crate::config::CategoryOverride {
+        show_frame: true,
+        show_accessories: false,
+        selected_frame: None,
+        selected_accessories: Vec::new(),
+        frame_source: "colorizable".into(),
+        selected_static_frame: None,
+        frame_scale: 1.0,
+        icon_scale: 1.0,
+        acc_scale: 1.0,
+    });
+    let mut m = HashMap::new();
+    m.insert("apps".into(), cat);
+    m
 }
 
 fn sample_svg() -> String {
@@ -29,7 +47,6 @@ fn test_export_config(output: String) -> ExportConfig {
     ExportConfig {
         output: Some(output),
         sizes: vec![],
-        generate_16_symlinks: false,
         ..Default::default()
     }
 }
@@ -97,6 +114,6 @@ fn export_no_frames_error() {
     let export_cfg = test_export_config(out_dir.path().to_string_lossy().to_string());
 
     let (tx, _rx) = mpsc::channel();
-    let err = export_pack(&pack, &palette, &export_cfg, &empty_overrides(), project_root.path(), &tx).unwrap_err();
+    let err = export_pack(&pack, &palette, &export_cfg, &overrides_with_frame(), project_root.path(), &tx).unwrap_err();
     assert!(matches!(err, crate::export::ExportError::NoFrames));
 }

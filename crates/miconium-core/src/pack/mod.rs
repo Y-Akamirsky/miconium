@@ -35,15 +35,7 @@ pub struct StaticFrames {
 
 #[derive(Debug, Clone)]
 pub struct Signs {
-    pub actions: Vec<LayerData>,
-    pub apps: Vec<LayerData>,
-    pub categories: Vec<LayerData>,
-    pub devices: Vec<LayerData>,
-    pub emblems: Vec<LayerData>,
-    pub mime: Vec<LayerData>,
-    pub places: Vec<LayerData>,
-    pub preferences: Vec<LayerData>,
-    pub status: Vec<LayerData>,
+    pub categories: HashMap<String, HashMap<String, Vec<LayerData>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -84,17 +76,53 @@ impl Pack {
             return Err(PackError::MissingRequired("signs/".into()));
         }
 
-        let signs = Signs {
-            actions: read_svg_dir(&signs_path.join("actions")).unwrap_or_default(),
-            apps: read_svg_dir(&signs_path.join("apps"))?,
-            categories: read_svg_dir(&signs_path.join("categories"))?,
-            devices: read_svg_dir(&signs_path.join("devices"))?,
-            emblems: read_svg_dir(&signs_path.join("emblems"))?,
-            mime: read_svg_dir(&signs_path.join("mime"))?,
-            places: read_svg_dir(&signs_path.join("places")).unwrap_or_default(),
-            preferences: read_svg_dir(&signs_path.join("preferences"))?,
-            status: read_svg_dir(&signs_path.join("status"))?,
-        };
+        let mut categories = HashMap::new();
+        let mut sign_dirs: Vec<_> = std::fs::read_dir(&signs_path)?
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .filter(|p| p.is_dir())
+            .collect();
+        sign_dirs.sort();
+
+        for dir in &sign_dirs {
+            let cat_name = dir
+                .file_name()
+                .map_or_else(|| "unknown".into(), |s| s.to_string_lossy().into_owned());
+
+            let mut variants: HashMap<String, Vec<LayerData>> = HashMap::new();
+            let mut subdirs: Vec<_> = std::fs::read_dir(dir)
+                .map(|rd| {
+                    rd.filter_map(Result::ok)
+                        .map(|e| e.path())
+                        .filter(|p| p.is_dir())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            subdirs.sort();
+
+            if subdirs.is_empty() {
+                let layers = read_svg_dir(dir).unwrap_or_default();
+                if !layers.is_empty() {
+                    variants.insert("scalable".into(), layers);
+                }
+            } else {
+                for subdir in &subdirs {
+                    let variant_name = subdir
+                        .file_name()
+                        .map_or_else(|| "unknown".into(), |s| s.to_string_lossy().into_owned());
+                    let layers = read_svg_dir(subdir).unwrap_or_default();
+                    if !layers.is_empty() {
+                        variants.insert(variant_name, layers);
+                    }
+                }
+            }
+
+            if !variants.is_empty() {
+                categories.insert(cat_name, variants);
+            }
+        }
+
+        let signs = Signs { categories };
 
         let accessories = read_svg_dir(&root.join("accessories")).unwrap_or_default();
 
@@ -109,35 +137,41 @@ impl Pack {
 
     #[must_use]
     pub fn get_signs_by_category(&self, category: &str) -> Vec<LayerData> {
-        self.signs_by_category_ref(category).to_vec()
+        self.signs.categories.get(category).map_or_else(Vec::new, |variants| {
+            variants.values().flatten().cloned().collect()
+        })
     }
 
     #[must_use]
-    pub fn signs_by_category_ref(&self, category: &str) -> &[LayerData] {
-        match category {
-            "actions" => &self.signs.actions,
-            "apps" => &self.signs.apps,
-            "categories" => &self.signs.categories,
-            "devices" => &self.signs.devices,
-            "emblems" => &self.signs.emblems,
-            "mime" => &self.signs.mime,
-            "places" => &self.signs.places,
-            "preferences" => &self.signs.preferences,
-            "status" => &self.signs.status,
-            _ => &[],
-        }
+    pub fn get_category_variants(&self, category: &str) -> Vec<String> {
+        self.signs.categories.get(category).map_or_else(Vec::new, |variants| {
+            let mut keys: Vec<String> = variants.keys().cloned().collect();
+            keys.sort();
+            keys
+        })
+    }
+
+    #[must_use]
+    pub fn get_sign_variant(&self, category: &str, variant: &str) -> Vec<LayerData> {
+        self.signs.categories.get(category)
+            .and_then(|v| v.get(variant))
+            .cloned()
+            .unwrap_or_default()
     }
 
     #[must_use]
     pub fn all_signs(&self) -> HashMap<String, Vec<LayerData>> {
-        let mut map = HashMap::new();
-        for category in &[
-            "actions", "apps", "categories", "devices", "emblems", "mime", "places",
-            "preferences", "status",
-        ] {
-            map.insert(category.to_string(), self.get_signs_by_category(category));
-        }
-        map
+        self.signs.categories.iter().map(|(cat, variants)| {
+            let all: Vec<LayerData> = variants.values().flatten().cloned().collect();
+            (cat.clone(), all)
+        }).collect()
+    }
+
+    #[must_use]
+    pub fn categories(&self) -> Vec<String> {
+        let mut keys: Vec<String> = self.signs.categories.keys().cloned().collect();
+        keys.sort();
+        keys
     }
 
     #[must_use]
@@ -152,15 +186,10 @@ impl Pack {
 
     #[must_use]
     pub fn sign_count(&self) -> usize {
-        self.signs.actions.len()
-            + self.signs.apps.len()
-            + self.signs.categories.len()
-            + self.signs.devices.len()
-            + self.signs.emblems.len()
-            + self.signs.mime.len()
-            + self.signs.places.len()
-            + self.signs.preferences.len()
-            + self.signs.status.len()
+        self.signs.categories.values()
+            .flat_map(|variants| variants.values())
+            .map(Vec::len)
+            .sum()
     }
 }
 

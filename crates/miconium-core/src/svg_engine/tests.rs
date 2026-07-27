@@ -397,3 +397,72 @@ fn inject_colors_multiple_occurrences() {
     let result = inject_colors(svg, &palette, false);
     assert_eq!(result.matches(r##"fill="#ff0000""##).count(), 2);
 }
+
+#[test]
+fn merge_layers_duplicate_xmlns_is_valid() {
+    // Check if roxmltree accepts duplicate xmlns attributes
+    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect/></svg>"#;
+    let doc = roxmltree::Document::parse(svg);
+    assert!(doc.is_ok(), "duplicate xmlns should be valid: {:?}", doc.err());
+}
+
+#[test]
+fn assemble_status_icon_validates_with_roxmltree() {
+    // Realistic status SVG with XML declaration, no viewBox, CSS classes
+    let status_svg = r##"<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" version="1.1">
+ <defs>
+  <style id="current-color-scheme" type="text/css">.ColorScheme-Text {color:#d8dee9} .ColorScheme-Highlight {color:#3b4252}</style></defs>
+ <path style="fill:currentColor" class="ColorScheme-Text" d="m 3.9999999,7.9999998 c 2.0806,-1.9268 4.9494,-3 8.0000001,-3 3.051,0 5.919,1.0731 8,3 L 12,19 Z"/>
+</svg>"##;
+
+    let frame_svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 16.933 16.933">
+  <rect x="1" y="1" width="14" height="14" rx="2" fill="currentBackground"/>
+</svg>"##;
+
+    let frame = make_layer(frame_svg, "frame-sq");
+    let sign = make_layer(status_svg, "network-wireless");
+    let palette = Palette::default();
+
+    let icon = assemble_icon(&frame, &sign, &[], &palette, true, true, false, 1.0, 1.0, 1.0).unwrap();
+
+    let doc = roxmltree::Document::parse(&icon.svg)
+        .unwrap_or_else(|e| panic!("status icon invalid SVG: {e}\n---\n{}", icon.svg));
+
+    let paths: Vec<_> = doc.descendants()
+        .filter(|n| n.is_element() && n.tag_name().name() == "path")
+        .collect();
+    let rects: Vec<_> = doc.descendants()
+        .filter(|n| n.is_element() && n.tag_name().name() == "rect")
+        .collect();
+    assert_eq!(rects.len(), 1, "expected 1 rect from frame; {}", icon.svg);
+    assert_eq!(paths.len(), 1, "expected 1 path from sign; {}", icon.svg);
+
+    // Verify no duplicate xmlns attribute
+    let xmlns_count = icon.svg.matches(r#"xmlns="http://www.w3.org/2000/svg""#).count();
+    assert_eq!(xmlns_count, 1, "xmlns must appear exactly once: {}",
+        icon.svg.lines().next().unwrap_or(""));
+}
+
+#[test]
+fn assemble_status_icon_no_frame_validates() {
+    // Status icon without frame (show_frame=false)
+    let status_svg = r##"<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" version="1.1">
+ <path style="fill:currentColor" d="M 10,5 V 6 H 7 v 12 c 0,0.55 0.446,1 1,1 h 8 c 0.554,0 1,-0.45 1,-1 V 6 H 14 V 5 Z"/>
+</svg>"##;
+
+    let frame = make_layer("", "none");
+    let sign = make_layer(status_svg, "battery-full");
+    let palette = Palette::default();
+
+    let icon = assemble_icon(&frame, &sign, &[], &palette, false, true, false, 1.0, 1.0, 1.0).unwrap();
+
+    let doc = roxmltree::Document::parse(&icon.svg)
+        .unwrap_or_else(|e| panic!("no-frame status icon invalid SVG: {e}\n---\n{}", icon.svg));
+
+    let paths: Vec<_> = doc.descendants()
+        .filter(|n| n.is_element() && n.tag_name().name() == "path")
+        .collect();
+    assert_eq!(paths.len(), 1, "expected 1 path;\n{}", icon.svg);
+}

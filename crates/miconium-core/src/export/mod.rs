@@ -24,6 +24,7 @@ pub enum ExportError {
 #[derive(Debug, Clone)]
 pub struct ExportProgress {
     pub category: String,
+    pub variant: String,
     pub current: usize,
     pub total: usize,
     pub message: String,
@@ -45,47 +46,13 @@ const GPLV3_LICENSE: &str = "\
  of this license document, but changing it is not allowed.
 ";
 
-fn category_to_output_dir(category: &str) -> &str {
-    match category {
-        "apps" => "apps",
-        "categories" => "categories",
-        "devices" => "devices",
-        "emblems" => "emblems",
-        "mime" => "mimetypes",
-        "preferences" => "preferences",
-        "status" => "status",
-        _ => category,
-    }
-}
-
-fn create_output_tree(output: &Path, with_symlinks: bool) -> Result<(), ExportError> {
+fn create_output_tree(output: &Path, pack: &Pack) -> Result<(), ExportError> {
     std::fs::create_dir_all(output)?;
-    let categories = [
-        "actions", "apps", "categories", "devices", "emblems",
-        "mimetypes", "places", "preferences", "status",
-    ];
-    for cat in &categories {
-        std::fs::create_dir_all(output.join(cat).join("scalable"))?;
-    }
-
-    if with_symlinks {
-        let link = output.join("places").join("16");
-        if !link.exists() {
-            symlink_scalable(&link)?;
+    for cat in pack.categories() {
+        for variant in pack.get_category_variants(&cat) {
+            std::fs::create_dir_all(output.join(&cat).join(&variant))?;
         }
     }
-
-    Ok(())
-}
-
-#[cfg(unix)]
-fn symlink_scalable(link: &Path) -> Result<(), ExportError> {
-    std::os::unix::fs::symlink("scalable", link)
-        .map_err(|e| ExportError::Symlink(format!("{} -> scalable: {e}", link.display())))
-}
-
-#[cfg(not(unix))]
-fn symlink_scalable(_link: &Path) -> Result<(), ExportError> {
     Ok(())
 }
 
@@ -107,10 +74,9 @@ fn write_meta_files(output: &Path, project_root: &Path) -> Result<(), ExportErro
     Ok(())
 }
 
-fn write_icon(output: &Path, category: &str, icon: &svg_engine::AssembledIcon, filename: &str) -> Result<(), ExportError> {
-    let dir = category_to_output_dir(category);
+fn write_icon(output: &Path, category: &str, variant: &str, icon: &svg_engine::AssembledIcon, filename: &str) -> Result<(), ExportError> {
     let filename = format!("{filename}.svg");
-    let path = output.join(dir).join("scalable").join(&filename);
+    let path = output.join(category).join(variant).join(&filename);
     std::fs::write(&path, &icon.svg)?;
     Ok(())
 }
@@ -119,61 +85,69 @@ fn run_export(
     output_path: &Path,
     pack: &Pack,
     palette: &Palette,
-    export_cfg: &ExportConfig,
-    category_overrides: &HashMap<String, CategoryOverride>,
+    category_overrides: &HashMap<String, HashMap<String, CategoryOverride>>,
     project_root: &Path,
     progress_tx: &mpsc::Sender<ExportProgress>,
 ) -> Result<(), ExportError> {
-    create_output_tree(output_path, export_cfg.generate_16_symlinks)?;
+    create_output_tree(output_path, pack)?;
 
-    let signs = pack.all_signs();
-    let total_icons: usize = signs.values().map(Vec::len).sum();
+    let total_icons: usize = pack.categories().iter()
+        .map(|cat| {
+            pack.get_category_variants(cat).iter()
+                .map(|variant| pack.get_sign_variant(cat, variant).len())
+                .sum::<usize>()
+        })
+        .sum();
     let mut processed = 0usize;
 
-    for (category, icons) in &signs {
-        let ov = category_overrides
-            .get(category)
-            .cloned()
-            .unwrap_or_else(|| crate::config::default_category_override(category));
+    for category in &pack.categories() {
+        for variant in pack.get_category_variants(category) {
+            let cat_overrides = category_overrides.get(category)
+                .and_then(|v| v.get(&variant))
+                .cloned()
+                .unwrap_or_else(|| crate::config::default_category_override(category));
 
-        let (frame_data, frame_is_static) = resolve_frame(&ov, pack)?;
+            let (frame_data, frame_is_static) = resolve_frame(&cat_overrides, pack)?;
 
-        let accessories: Vec<crate::pack::LayerData> = if ov.show_accessories {
-            if ov.selected_accessories.is_empty() {
-                pack.accessories.clone()
+            let accessories: Vec<crate::pack::LayerData> = if cat_overrides.show_accessories {
+                if cat_overrides.selected_accessories.is_empty() {
+                    pack.accessories.iter().take(1).cloned().collect()
+                } else {
+                    pack.accessories
+                        .iter()
+                        .filter(|a| cat_overrides.selected_accessories.contains(&a.name))
+                        .cloned()
+                        .collect()
+                }
             } else {
-                pack.accessories
-                    .iter()
-                    .filter(|a| ov.selected_accessories.contains(&a.name))
-                    .cloned()
-                    .collect()
+                Vec::new()
+            };
+
+            let icons = pack.get_sign_variant(category, &variant);
+            for sign in &icons {
+                let assembled = svg_engine::assemble_icon(
+                    &frame_data,
+                    sign,
+                    &accessories,
+                    palette,
+                    cat_overrides.show_frame,
+                    cat_overrides.show_accessories,
+                    frame_is_static,
+                    cat_overrides.frame_scale,
+                    cat_overrides.icon_scale,
+                    cat_overrides.acc_scale,
+                )?;
+                write_icon(output_path, category, &variant, &assembled, &sign.name)?;
+
+                processed += 1;
+                let _ = progress_tx.send(ExportProgress {
+                    category: category.clone(),
+                    variant: variant.clone(),
+                    current: processed,
+                    total: total_icons,
+                    message: format!("{} / {}: {}", category, variant, sign.name),
+                });
             }
-        } else {
-            Vec::new()
-        };
-
-        for sign in icons {
-            let assembled = svg_engine::assemble_icon(
-                &frame_data,
-                sign,
-                &accessories,
-                palette,
-                ov.show_frame,
-                ov.show_accessories,
-                frame_is_static,
-                export_cfg.frame_scale,
-                export_cfg.icon_scale,
-                export_cfg.acc_scale,
-            )?;
-            write_icon(output_path, category, &assembled, &sign.name)?;
-
-            processed += 1;
-            let _ = progress_tx.send(ExportProgress {
-                category: category.clone(),
-                current: processed,
-                total: total_icons,
-                message: format!("{}: {}", category, sign.name),
-            });
         }
     }
 
@@ -246,18 +220,18 @@ pub fn export_pack(
     pack: &Pack,
     palette: &Palette,
     export_cfg: &ExportConfig,
-    category_overrides: &HashMap<String, CategoryOverride>,
+    category_overrides: &HashMap<String, HashMap<String, CategoryOverride>>,
     project_root: &Path,
     progress_tx: &mpsc::Sender<ExportProgress>,
 ) -> Result<(), ExportError> {
     let output_path = resolve_output_path(export_cfg);
 
-    match run_export(&output_path, pack, palette, export_cfg, category_overrides, project_root, progress_tx) {
+    match run_export(&output_path, pack, palette, category_overrides, project_root, progress_tx) {
         Ok(()) => Ok(()),
         Err(ExportError::Io(_)) => {
             let fallback = PathBuf::from("/tmp/miconium-export");
             eprintln!("Export: IO error on {}, retrying with {}", output_path.display(), fallback.display());
-            run_export(&fallback, pack, palette, export_cfg, category_overrides, project_root, progress_tx)
+            run_export(&fallback, pack, palette, category_overrides, project_root, progress_tx)
         }
         Err(e) => Err(e),
     }
@@ -269,7 +243,9 @@ fn resolve_output_path(config: &ExportConfig) -> PathBuf {
     if let Some(path) = &config.output {
         if path.starts_with('~') {
             let mut buf = if home.is_empty() { return fallback(); } else { PathBuf::from(&home) };
-            buf.push(path.strip_prefix('~').unwrap_or(""));
+            let suffix = path.strip_prefix('~').unwrap_or("");
+            let suffix = suffix.strip_prefix('/').unwrap_or(suffix);
+            buf.push(suffix);
             buf
         } else {
             PathBuf::from(path)

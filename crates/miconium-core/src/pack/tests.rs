@@ -37,8 +37,18 @@ fn load_valid_pack() {
     assert_eq!(pack.name, dir.path().file_name().unwrap().to_str().unwrap());
     assert_eq!(pack.frames.colorizable.len(), 1);
     assert!(pack.frames.static_frames.is_none());
-    assert_eq!(pack.signs.apps.len(), 2);
-    assert_eq!(pack.signs.status.len(), 1);
+    assert_eq!(
+        pack.signs.categories.get("apps")
+            .and_then(|v| v.get("scalable"))
+            .map_or(0, Vec::len),
+        2
+    );
+    assert_eq!(
+        pack.signs.categories.get("status")
+            .and_then(|v| v.get("scalable"))
+            .map_or(0, Vec::len),
+        1
+    );
     assert!(pack.accessories.is_empty());
 }
 
@@ -176,12 +186,9 @@ fn all_signs_returns_all_categories() {
     let pack = Pack::load(dir.path()).unwrap();
 
     let all = pack.all_signs();
-    assert_eq!(all.len(), 9);
-    assert!(all.contains_key("actions"));
+    assert_eq!(all.len(), 2);
     assert!(all.contains_key("apps"));
-    assert!(all.contains_key("places"));
     assert!(all.contains_key("status"));
-    assert!(all.contains_key("mime"));
 }
 
 #[test]

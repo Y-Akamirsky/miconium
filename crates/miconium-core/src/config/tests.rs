@@ -21,7 +21,6 @@ accent = "#ff0000"
 [export]
 output = "~/.local/share/icons/Miconium"
 sizes = [16, 32, 64]
-generate_16_symlinks = false
 
 [gui]
 window_width = 1024
@@ -34,7 +33,6 @@ fn parse_minimal_config() {
     assert_eq!(config.pack.path.as_deref(), Some("packs/mono"));
     assert_eq!(config.pack.name, "mono");
     assert!(config.colors.scheme.is_none());
-    assert!(config.export.generate_16_symlinks);
 }
 
 #[test]
@@ -47,7 +45,6 @@ fn parse_full_config() {
         Some("~/.themes/my.colors")
     );
     assert_eq!(config.export.sizes, vec![16, 32, 64]);
-    assert!(!config.export.generate_16_symlinks);
     assert_eq!(config.gui.window_width, 1024);
     assert_eq!(config.gui.window_height, 768);
 
@@ -62,7 +59,6 @@ fn default_config_values() {
     assert_eq!(config.pack.name, "mono");
     assert!(config.pack.path.is_none());
     assert!(config.colors.scheme.is_none());
-    assert!(config.export.generate_16_symlinks);
     assert_eq!(config.export.sizes.len(), 9);
     assert_eq!(config.gui.window_width, 800);
 }
