@@ -188,6 +188,206 @@ fn merge_layers_preserves_svg_structure() {
 }
 
 #[test]
+fn merge_with_xlink_href_gradient() {
+    // Simulate out-rnd.svg: accessory with gradient that uses xlink:href
+    let frame = make_layer(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+            <linearGradient id="shine"><stop offset="0" stop-color="#fff"/></linearGradient>
+            <rect fill="url(#shine)" width="48" height="48"/>
+        </svg>"##,
+        "frame",
+    );
+    let sign = make_layer(SIGN_SVG, "sign");
+    let acc = make_layer(
+        r##"<svg xmlns="http://www.w3.org/2000/svg"
+                xmlns:xlink="http://www.w3.org/1999/xlink"
+                viewBox="0 0 48 48">
+            <defs>
+                <linearGradient id="g1">
+                    <stop offset="0" stop-color="#fff"/>
+                </linearGradient>
+                <linearGradient id="g2" xlink:href="#g1" x1="0" y1="0" x2="48" y2="48"/>
+            </defs>
+            <circle cx="24" cy="24" r="20" fill="url(#g2)"/>
+        </svg>"##,
+        "out-rnd",
+    );
+    let palette = Palette::default();
+    let icon = assemble_icon(
+        &frame, &sign, &[acc], &palette,
+        true, true, false, 1.0, 1.0, 1.0,
+    ).unwrap();
+    // Must be valid XML
+    let doc = roxmltree::Document::parse(&icon.svg).unwrap();
+    assert_eq!(doc.root_element().tag_name().name(), "svg");
+    // Check that gradients from accessory were prefixed
+    let svg = &icon.svg;
+    assert!(svg.contains(r##"id="l2-g2""##), "accessory gradient id not prefixed: {svg}");
+    assert!(svg.contains(r##"url(#l2-g2)"##), "accessory url reference not prefixed: {svg}");
+    assert!(svg.contains(r##"xlink:href="#l2-g1""##), "xlink:href ref not prefixed: {svg}");
+    // Frame gradient should NOT be prefixed
+    assert!(svg.contains(r##"id="shine""##), "frame gradient id should stay unchanged: {svg}");
+}
+
+#[test]
+fn assemble_icon_with_out_rnd_accessory() {
+    // Real out-rnd.svg content: circle with fill:none;stroke:url(#linearGradient10)
+    // where linearGradient10 uses xlink:href="#linearGradient9"
+    let frame_svg = r##"<svg xmlns="http://www.w3.org/2000/svg"
+            xmlns:xlink="http://www.w3.org/1999/xlink"
+            xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+            xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+            viewBox="0 0 48 48" width="64" height="64">
+        <defs>
+            <linearGradient id="a-0" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#474747" style="stop-color:#2a2a2a;stop-opacity:1;"/>
+                <stop offset="1" stop-color="#333" style="stop-color:#000000;stop-opacity:1;"/>
+            </linearGradient>
+            <linearGradient id="shine-grad-final-v3" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/>
+                <stop offset="50%" stop-color="#ffffff" stop-opacity="0"/>
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0.5"/>
+            </linearGradient>
+        </defs>
+        <circle cx="24" cy="24" r="22" fill="url(#a-0)"/>
+    </svg>"##;
+    let out_rnd = r##"<svg xmlns="http://www.w3.org/2000/svg"
+            xmlns:xlink="http://www.w3.org/1999/xlink"
+            xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+            xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+            viewBox="0 0 16.933 16.933" width="64" height="64">
+        <sodipodi:namedview id="namedview6" inkscape:current-layer="svg6"/>
+        <defs>
+            <linearGradient id="linearGradient9" inkscape:collect="always">
+                <stop style="stop-color:#ffffff;stop-opacity:1;" offset="0"/>
+                <stop style="stop-color:#ffffff;stop-opacity:0;" offset="0.49"/>
+                <stop style="stop-color:#ffffff;stop-opacity:1;" offset="0.98"/>
+            </linearGradient>
+            <linearGradient id="a-0" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#474747" style="stop-color:#2a2a2a;stop-opacity:1;"/>
+                <stop offset="1" stop-color="#333" style="stop-color:#000000;stop-opacity:1;"/>
+            </linearGradient>
+            <linearGradient inkscape:collect="always"
+                xlink:href="#linearGradient9" id="linearGradient10"
+                x1="3.22" y1="3.22" x2="13.70" y2="13.70" gradientUnits="userSpaceOnUse"/>
+        </defs>
+        <defs>
+            <linearGradient id="shine-grad-final-v3" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/>
+                <stop offset="50%" stop-color="#ffffff" stop-opacity="0"/>
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0.5"/>
+            </linearGradient>
+        </defs>
+        <circle style="opacity:0.355491;fill:none;stroke:url(#linearGradient10);stroke-width:0.462342;stroke-linecap:round;stroke-linejoin:round"
+            cx="8.4665" cy="8.4665" r="7.177"/>
+    </svg>"##;
+    let sign_svg = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" fill="currentForeground"/>
+    </svg>"##;
+
+    let frame = make_layer(frame_svg, "frame-rnd");
+    let sign = make_layer(sign_svg, "sign");
+    let acc = make_layer(out_rnd, "out-rnd");
+    let palette = Palette::default();
+
+    let icon = assemble_icon(
+        &frame, &sign, &[acc], &palette,
+        true, true, false, 1.0, 1.0, 1.0,
+    ).unwrap();
+
+    // Must be valid XML
+    let doc = roxmltree::Document::parse(&icon.svg)
+        .unwrap_or_else(|e| panic!("invalid SVG: {e}\n---\n{}", icon.svg));
+
+    // Find all circle elements (frame + sign + out-rnd = 3)
+    let circles: Vec<_> = doc.descendants()
+        .filter(|n| n.is_element() && n.tag_name().name() == "circle")
+        .collect();
+    assert_eq!(circles.len(), 3, "expected 3 circles (frame+sign+out-rnd), got {};\n{}", circles.len(), icon.svg);
+
+    // The last circle is the out-rnd one (layer-2)
+    let out_rnd_circle = &circles[2];
+    let style = out_rnd_circle.attribute("style").unwrap_or("");
+    assert!(style.contains("fill:none"), "out-rnd circle should preserve fill:none: {style}");
+    assert!(style.contains("stroke:url(#l2-linearGradient10)"),
+        "out-rnd circle stroke URL should be prefixed: {style}");
+    assert!(style.contains("stroke-width:0.462342"),
+        "out-rnd circle should retain stroke-width");
+
+    // Gradient chain should be intact
+    let svg_text = &icon.svg;
+    assert!(svg_text.contains("id=\"l2-linearGradient10\""),
+        "linearGradient10 id not prefixed");
+    assert!(svg_text.contains("xlink:href=\"#l2-linearGradient9\""),
+        "xlink:href in gradient10 not prefixed: check for double or missing prefix");
+    assert!(svg_text.contains("id=\"l2-linearGradient9\""),
+        "linearGradient9 id not prefixed");
+    // The stroke URL in style must point to prefixed id
+    assert!(svg_text.contains("stroke:url(#l2-linearGradient10)"),
+        "stroke URL should reference prefixed gradient: {svg_text}");
+    // Frame gradient must NOT be prefixed
+    assert!(svg_text.contains("id=\"a-0\""),
+        "frame gradient a-0 should stay unchanged");
+}
+
+#[test]
+fn replace_colors_does_not_skip_hash_after_url() {
+    // Regression test: auryo.svg has BOTH fill="url(#c)" (earlier)
+    // AND style="fill:#000000" (later). The #000000 must STILL be replaced.
+    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+        <defs>
+            <linearGradient id="c">
+                <stop offset="0" stop-color="#5490ea"/>
+            </linearGradient>
+        </defs>
+        <path fill="url(#c)" d="M24 11" style="paint-order:normal;fill:#000000"/>
+    </svg>"##;
+    let result = replace_hardcoded_colors(svg, "#ff0000");
+    assert!(result.contains(r##"fill:#ff0000"##),
+        "style fill:#000000 should be replaced with target, but got: {result}");
+    assert!(result.contains(r##"fill="url(#c)""##),
+        "fill=\"url(#c)\" must be preserved: {result}");
+}
+
+#[test]
+fn assemble_icon_with_auryo_sign_gets_fg_color() {
+    // auryo.svg has fill="url(#c)" and style="fill:#000000".
+    // The sign must get foreground color applied to its path fill.
+    let frame = make_layer(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+            <rect width="48" height="48" fill="currentBackground"/>
+        </svg>"##,
+        "frame",
+    );
+    // auryo-like sign: url(#c) references, then style fill override
+    let auryo = make_layer(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+            <defs>
+                <linearGradient id="c">
+                    <stop offset="0" stop-color="#5490ea"/>
+                </linearGradient>
+            </defs>
+            <path fill="url(#c)" d="M24 11" style="paint-order:normal;fill:#000000"/>
+        </svg>"##,
+        "auryo",
+    );
+    let palette = Palette::default(); // fg = "#ffffff"
+
+    let icon = assemble_icon(
+        &frame, &auryo, &[], &palette,
+        true, true, false, 1.0, 1.0, 1.0,
+    ).unwrap();
+
+    let svg = &icon.svg;
+    // The path's style fill must have been replaced with foreground color (#ffffff).
+    assert!(svg.contains(r##"fill:#ffffff"##),
+        "style fill in auryo sign should be foreground (#ffffff), got: {svg}");
+    // The url reference must remain intact (prefixed as sign is layer-1)
+    assert!(svg.contains(r##"fill="url(#l1-c)""##),
+        "fill=\"url(#l1-c)\" should be preserved: {svg}");
+}
+
+#[test]
 fn inject_colors_multiple_occurrences() {
     let palette = Palette {
         foreground: "#ff0000".into(),

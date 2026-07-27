@@ -150,9 +150,15 @@ pub fn merge_layers(layers: &[LayerData], user_scales: &[f64]) -> Result<String,
     let mut body = String::new();
 
     for (i, layer) in layers.iter().enumerate() {
-        let inner = extract_svg_body(&layer.svg_content).unwrap_or("");
+        let mut inner = extract_svg_body(&layer.svg_content).unwrap_or("").to_string();
         if inner.is_empty() {
             continue;
+        }
+
+        // Prefix IDs in non-first layers to avoid conflicts (e.g. two layers
+        // defining a gradient with the same id="shine-grad-final-v3").
+        if i > 0 {
+            inner = prefix_ids(&inner, i);
         }
 
         let mut tag = format!(r#"<g id="layer-{i}""#);
@@ -175,7 +181,7 @@ pub fn merge_layers(layers: &[LayerData], user_scales: &[f64]) -> Result<String,
 
         tag.push('>');
         body.push_str(&tag);
-        body.push_str(inner);
+        body.push_str(&inner);
         body.push_str("</g>");
     }
 
@@ -257,6 +263,20 @@ pub fn assemble_single(svg: &str, palette: &Palette) -> Result<AssembledIcon, Sv
 /// Handles `fill="#XXXXXX"`, `stroke="#XXXXXX"`, `stop-color="#XXXXXX"`,
 /// and `fill:#XXXXXX`/`stroke:#XXXXXX`/`stop-color:#XXXXXX` inside `style=""`.
 /// Skips `url(#…)`.
+/// Prefix all `id="..."`, `url(#...)`, `xlink:href="#..."` and `href="#..."`
+/// references in a body string so that multiple layers can use the same
+/// logical IDs without conflict.
+fn prefix_ids(body: &str, layer_index: usize) -> String {
+    let prefix = format!("l{layer_index}-");
+    let s = body.replace("id=\"", &format!("id=\"{prefix}"));
+    let s = s.replace("url(#", &format!("url(#{prefix}"));
+    // Use a temporary marker to avoid xlink:href being mangled twice
+    // (href pass would re-prefix xlink:href results).
+    let s = s.replace("xlink:href=\"#", &format!("XLINKHREF=\"#{prefix}"));
+    let s = s.replace("href=\"#", &format!("href=\"#{prefix}"));
+    s.replace("XLINKHREF=\"#", "xlink:href=\"#")
+}
+
 /// Wrap SVG body in `<g fill="{color}">` so elements without explicit fill
 /// inherit the target color.
 fn wrap_svg_body_with_fill(svg: &str, color: &str) -> String {
@@ -275,19 +295,28 @@ pub fn replace_hardcoded_colors(svg: &str, target: &str) -> String {
     let mut i = 0;
 
     while i < bytes.len() {
-        if bytes[i] == b'#' {
-            let before = &svg[..i];
-            // Skip url(#...)
-            if let Some(rp) = before.rfind("url(") {
-                let after_rp = &before[rp + 4..].trim_start();
-                if after_rp.is_empty() || after_rp.as_bytes()[0] == b'#' {
-                    if let Some(end) = svg[i..].find(')') {
-                        result.push_str(&svg[i..=i + end]);
-                        i += end + 1;
-                        continue;
+            if bytes[i] == b'#' {
+                let before = &svg[..i];
+                // Skip url(#...) — only if THIS # is the first char of
+                // the url() argument, not a later unrelated #.
+                if let Some(rp) = before.rfind("url(") {
+                    let after_rp = &before[rp + 4..];
+                    let after_trimmed = after_rp.trim_start();
+                    let is_this_hash_url_arg = if after_trimmed.starts_with('#') {
+                        let ws_len = after_rp.len() - after_trimmed.len();
+                        rp + 4 + ws_len == i
+                    } else {
+                        // url( is immediately before # (url(#...)
+                        after_rp.is_empty()
+                    };
+                    if is_this_hash_url_arg {
+                        if let Some(end) = svg[i..].find(')') {
+                            result.push_str(&svg[i..=i + end]);
+                            i += end + 1;
+                            continue;
+                        }
                     }
                 }
-            }
 
             // Determine context: is # preceded by color keyword like fill/stroke/stop-color?
             let mut context_ok = false;
