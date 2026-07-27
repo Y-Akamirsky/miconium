@@ -8,11 +8,13 @@ const SAMPLE_SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0
 fn create_test_pack(root: &Path) {
     let dirs = [
         "frames/colorizable",
+        "signs/actions",
         "signs/apps",
         "signs/categories",
         "signs/devices",
         "signs/emblems",
         "signs/mime",
+        "signs/places",
         "signs/preferences",
         "signs/status",
     ];
@@ -174,8 +176,10 @@ fn all_signs_returns_all_categories() {
     let pack = Pack::load(dir.path()).unwrap();
 
     let all = pack.all_signs();
-    assert_eq!(all.len(), 7);
+    assert_eq!(all.len(), 9);
+    assert!(all.contains_key("actions"));
     assert!(all.contains_key("apps"));
+    assert!(all.contains_key("places"));
     assert!(all.contains_key("status"));
     assert!(all.contains_key("mime"));
 }

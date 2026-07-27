@@ -111,6 +111,9 @@ pub struct ExportConfig {
     pub output: Option<String>,
     pub sizes: Vec<u32>,
     pub generate_16_symlinks: bool,
+    pub frame_scale: f64,
+    pub icon_scale: f64,
+    pub acc_scale: f64,
 }
 
 impl Default for ExportConfig {
@@ -119,6 +122,9 @@ impl Default for ExportConfig {
             output: None,
             sizes: vec![16, 24, 32, 48, 64, 96, 128, 256, 512],
             generate_16_symlinks: true,
+            frame_scale: 1.0,
+            icon_scale: 1.0,
+            acc_scale: 1.0,
         }
     }
 }

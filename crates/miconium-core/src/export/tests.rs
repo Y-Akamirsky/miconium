@@ -30,6 +30,7 @@ fn test_export_config(output: String) -> ExportConfig {
         output: Some(output),
         sizes: vec![],
         generate_16_symlinks: false,
+        ..Default::default()
     }
 }
 

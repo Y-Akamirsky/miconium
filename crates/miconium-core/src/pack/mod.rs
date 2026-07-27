@@ -35,11 +35,13 @@ pub struct StaticFrames {
 
 #[derive(Debug, Clone)]
 pub struct Signs {
+    pub actions: Vec<LayerData>,
     pub apps: Vec<LayerData>,
     pub categories: Vec<LayerData>,
     pub devices: Vec<LayerData>,
     pub emblems: Vec<LayerData>,
     pub mime: Vec<LayerData>,
+    pub places: Vec<LayerData>,
     pub preferences: Vec<LayerData>,
     pub status: Vec<LayerData>,
 }
@@ -83,11 +85,13 @@ impl Pack {
         }
 
         let signs = Signs {
+            actions: read_svg_dir(&signs_path.join("actions")).unwrap_or_default(),
             apps: read_svg_dir(&signs_path.join("apps"))?,
             categories: read_svg_dir(&signs_path.join("categories"))?,
             devices: read_svg_dir(&signs_path.join("devices"))?,
             emblems: read_svg_dir(&signs_path.join("emblems"))?,
             mime: read_svg_dir(&signs_path.join("mime"))?,
+            places: read_svg_dir(&signs_path.join("places")).unwrap_or_default(),
             preferences: read_svg_dir(&signs_path.join("preferences"))?,
             status: read_svg_dir(&signs_path.join("status"))?,
         };
@@ -111,11 +115,13 @@ impl Pack {
     #[must_use]
     pub fn signs_by_category_ref(&self, category: &str) -> &[LayerData] {
         match category {
+            "actions" => &self.signs.actions,
             "apps" => &self.signs.apps,
             "categories" => &self.signs.categories,
             "devices" => &self.signs.devices,
             "emblems" => &self.signs.emblems,
             "mime" => &self.signs.mime,
+            "places" => &self.signs.places,
             "preferences" => &self.signs.preferences,
             "status" => &self.signs.status,
             _ => &[],
@@ -126,7 +132,8 @@ impl Pack {
     pub fn all_signs(&self) -> HashMap<String, Vec<LayerData>> {
         let mut map = HashMap::new();
         for category in &[
-            "apps", "categories", "devices", "emblems", "mime", "preferences", "status",
+            "actions", "apps", "categories", "devices", "emblems", "mime", "places",
+            "preferences", "status",
         ] {
             map.insert(category.to_string(), self.get_signs_by_category(category));
         }
@@ -145,11 +152,13 @@ impl Pack {
 
     #[must_use]
     pub fn sign_count(&self) -> usize {
-        self.signs.apps.len()
+        self.signs.actions.len()
+            + self.signs.apps.len()
             + self.signs.categories.len()
             + self.signs.devices.len()
             + self.signs.emblems.len()
             + self.signs.mime.len()
+            + self.signs.places.len()
             + self.signs.preferences.len()
             + self.signs.status.len()
     }

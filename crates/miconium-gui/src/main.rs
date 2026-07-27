@@ -273,7 +273,7 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
     let list = gtk::ListBox::new();
     list.set_selection_mode(gtk::SelectionMode::None);
 
-    let cats = ["apps", "categories", "devices", "emblems", "mime", "preferences", "status"];
+    let cats = ["actions", "apps", "categories", "devices", "emblems", "mime", "places", "preferences", "status"];
     let frame_names: Vec<String> = pack.frames.colorizable.iter().map(|f| f.name.clone()).collect();
     let static_dark_names: Vec<String> = pack.frames.static_frames.as_ref().map_or(Vec::new(), |sf| {
         sf.dark.iter().map(|f| f.name.clone()).collect()
@@ -532,12 +532,14 @@ fn rebuild_preview(data: &Rc<RefCell<AppData>>) {
     let name = {
         let d = data.borrow();
         d.pack.as_ref().and_then(|p| {
-            p.get_signs_by_category("apps")
+            p.get_signs_by_category("actions")
                 .into_iter()
+                .chain(p.get_signs_by_category("apps"))
                 .chain(p.get_signs_by_category("categories"))
                 .chain(p.get_signs_by_category("devices"))
                 .chain(p.get_signs_by_category("emblems"))
                 .chain(p.get_signs_by_category("mime"))
+                .chain(p.get_signs_by_category("places"))
                 .chain(p.get_signs_by_category("preferences"))
                 .chain(p.get_signs_by_category("status"))
                 .next()
@@ -764,7 +766,7 @@ fn build_categories_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
     let categories: Vec<(String, Vec<String>, Vec<String>)> = {
         let d = data.borrow();
         let Some(pack) = &d.pack else { return };
-        let cats = ["apps", "categories", "devices", "emblems", "mime", "preferences", "status"];
+    let cats = ["actions", "apps", "categories", "devices", "emblems", "mime", "places", "preferences", "status"];
         cats.iter()
             .filter(|c| !pack.get_signs_by_category(c).is_empty())
             .map(|&c| {
@@ -906,7 +908,7 @@ fn show_all_icons(data: &Rc<RefCell<AppData>>, parent: &gtk::Window) {
         let d = data.borrow();
         let Some(pack) = &d.pack else { return };
         let mut cats: Vec<(String, Vec<miconium_core::pack::LayerData>)> = Vec::new();
-        for cat in &["apps", "categories", "devices", "emblems", "mime", "preferences", "status"] {
+        for cat in &["actions", "apps", "categories", "devices", "emblems", "mime", "places", "preferences", "status"] {
             let signs = pack.get_signs_by_category(cat);
             if !signs.is_empty() {
                 cats.push((cat.to_string(), signs));
@@ -960,12 +962,14 @@ fn show_first_preview(data: &Rc<RefCell<AppData>>) {
     let first_sign = {
         let d = data.borrow();
         d.pack.as_ref().and_then(|p| {
-            p.get_signs_by_category("apps")
+            p.get_signs_by_category("actions")
                 .into_iter()
+                .chain(p.get_signs_by_category("apps"))
                 .chain(p.get_signs_by_category("categories"))
                 .chain(p.get_signs_by_category("devices"))
                 .chain(p.get_signs_by_category("emblems"))
                 .chain(p.get_signs_by_category("mime"))
+                .chain(p.get_signs_by_category("places"))
                 .chain(p.get_signs_by_category("preferences"))
                 .chain(p.get_signs_by_category("status"))
                 .next()
@@ -978,7 +982,7 @@ fn show_first_preview(data: &Rc<RefCell<AppData>>) {
 }
 
 fn find_sign_category<'a>(pack: &'a Pack, name: &str) -> Option<(&'a str, miconium_core::pack::LayerData)> {
-    for cat in &["apps", "categories", "devices", "emblems", "mime", "preferences", "status"] {
+    for cat in &["actions", "apps", "categories", "devices", "emblems", "mime", "places", "preferences", "status"] {
         if let Some(sign) = pack.signs_by_category_ref(cat).iter().find(|s| s.name == name) {
             return Some((cat, sign.clone()));
         }
@@ -1116,7 +1120,7 @@ fn render_svg_to_pixbuf(svg: &str, target_w: i32, target_h: i32) -> Option<gdk_p
 
 #[allow(clippy::cast_precision_loss)]
 fn start_export(data: &Rc<RefCell<AppData>>, window: &gtk::Window) {
-    let (pack, palette, export_cfg, category_overrides) = {
+    let (pack, palette, mut export_cfg, category_overrides) = {
         let d = data.borrow();
         let Some(pack) = &d.pack else {
             eprintln!("Export cancelled: no pack loaded");
@@ -1126,6 +1130,13 @@ fn start_export(data: &Rc<RefCell<AppData>>, window: &gtk::Window) {
         let pack = pack.clone();
         (pack, d.palette.clone(), d.config.export.clone(), d.config.pack.category_overrides.clone())
     };
+    // Copy live scale sliders into export config
+    {
+        let d = data.borrow();
+        export_cfg.frame_scale = d.frame_scale;
+        export_cfg.icon_scale = d.icon_scale;
+        export_cfg.acc_scale = d.acc_scale;
+    }
 
     let dialog = gtk::Dialog::with_buttons(
         Some("Exporting…"),

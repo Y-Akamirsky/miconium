@@ -161,7 +161,9 @@ fn run_export(
                 ov.show_frame,
                 ov.show_accessories,
                 frame_is_static,
-                1.0, 1.0, 1.0,
+                export_cfg.frame_scale,
+                export_cfg.icon_scale,
+                export_cfg.acc_scale,
             )?;
             write_icon(output_path, category, &assembled, &sign.name)?;
 
