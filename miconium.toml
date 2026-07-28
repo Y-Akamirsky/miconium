@@ -1,6 +1,6 @@
 [pack]
-path = "packs/mono"
-name = "mono"
+path = "packs/yamis"
+name = "yamis"
 
 [colors]
 # scheme = "~/.themes/my.colors"

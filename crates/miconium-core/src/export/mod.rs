@@ -56,13 +56,94 @@ fn create_output_tree(output: &Path, pack: &Pack) -> Result<(), ExportError> {
     Ok(())
 }
 
-fn write_meta_files(output: &Path, project_root: &Path) -> Result<(), ExportError> {
-    std::fs::write(output.join("Authors"), AUTHORS_CONTENT)?;
-
-    let index_src = project_root.join("index.theme");
-    if index_src.is_file() {
-        std::fs::copy(&index_src, output.join("index.theme"))?;
+fn context_for_category(cat: &str) -> &str {
+    match cat {
+        "actions" => "Actions",
+        "categories" => "Categories",
+        "devices" => "Devices",
+        "emblems" => "Emblems",
+        "mimetypes" => "MimeTypes",
+        "places" => "Places",
+        "preferences" => "Preferences",
+        "status" => "Status",
+        _ => "Applications",
     }
+}
+
+fn scalable_section_size(category: &str) -> u32 {
+    if category == "status" { 64 } else { 96 }
+}
+
+fn scalable_section_min_size(category: &str) -> u32 {
+    match category {
+        "status" => 16,
+        _ => 8,
+    }
+}
+
+fn scalable_section_max_size(category: &str) -> u32 {
+    match category {
+        "mimetypes" => 256,
+        "status" => 128,
+        _ => 512,
+    }
+}
+
+fn generate_dir_section(category: &str, variant: &str) -> String {
+    let context = context_for_category(category);
+    let is_numbered = variant.chars().all(|c| c.is_ascii_digit());
+
+    let (size, min_size, max_size) = if is_numbered {
+        let s: u32 = variant.parse().unwrap_or(16);
+        (s, s.min(8), (s * 2).max(32))
+    } else {
+        (
+            scalable_section_size(category),
+            scalable_section_min_size(category),
+            scalable_section_max_size(category),
+        )
+    };
+
+    format!(
+        "[{category}/{variant}]\n\
+         Size={size}\n\
+         Context={context}\n\
+         MinSize={min_size}\n\
+         MaxSize={max_size}\n\
+         Type=Scalable\n"
+    )
+}
+
+fn generate_index_theme(pack: &Pack) -> String {
+    let mut dirs: Vec<String> = Vec::new();
+    let mut sections: Vec<String> = Vec::new();
+
+    for cat in pack.categories() {
+        for variant in pack.get_category_variants(&cat) {
+            let dir = format!("{cat}/{variant}");
+            dirs.push(dir);
+            sections.push(generate_dir_section(&cat, &variant));
+        }
+    }
+
+    format!(
+        "[Icon Theme]\n\
+         Name=Miconium\n\
+         Comment=SVG icon generator for Linux desktop.\n\
+         Inherits=hicolor\n\
+         FollowsColorScheme=true\n\
+         \n\
+         Directories={}\n\
+         \n\
+         {}",
+        dirs.join(","),
+        sections.join("\n"),
+    )
+}
+
+fn write_meta_files(output: &Path, pack: &Pack, project_root: &Path) -> Result<(), ExportError> {
+    std::fs::write(output.join("Authors"), AUTHORS_CONTENT)?;
+    std::fs::write(output.join("index.theme"), generate_index_theme(pack))?;
 
     let license_src = project_root.join("LICENSE");
     if license_src.is_file() {
@@ -151,7 +232,7 @@ fn run_export(
         }
     }
 
-    write_meta_files(output_path, project_root)?;
+    write_meta_files(output_path, pack, project_root)?;
 
     Ok(())
 }

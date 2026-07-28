@@ -13,8 +13,8 @@ fn workspace_root() -> PathBuf {
 fn load_project_config() {
     let path = workspace_root().join("miconium.toml");
     let config = miconium_core::config::load(&path.to_string_lossy()).unwrap();
-    assert_eq!(config.pack.name, "mono");
-    assert_eq!(config.pack.path.as_deref(), Some("packs/mono"));
+    assert_eq!(config.pack.name, "yamis");
+    assert_eq!(config.pack.path.as_deref(), Some("packs/yamis"));
     assert_eq!(config.gui.window_width, 800);
 }
 

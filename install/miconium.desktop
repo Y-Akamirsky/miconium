@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=miconium
+Comment=Material design icon generator for Linux desktops
+Exec=pkexec /usr/local/bin/miconium-gui
+Icon=miconium
+Terminal=false
+Categories=Utility;Network;

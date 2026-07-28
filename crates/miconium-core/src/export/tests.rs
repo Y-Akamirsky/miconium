@@ -58,7 +58,6 @@ fn export_to_tempdir() {
 
     let out_dir = tempfile::tempdir().unwrap();
     let project_root = tempfile::tempdir().unwrap();
-    std::fs::write(project_root.path().join("index.theme"), "[Icon Theme]\nName=Miconium\n").unwrap();
 
     let pack = Pack::load(pack_dir.path()).unwrap();
     let palette = crate::color::Palette::default();
@@ -83,7 +82,6 @@ fn export_writes_valid_svg() {
 
     let out_dir = tempfile::tempdir().unwrap();
     let project_root = tempfile::tempdir().unwrap();
-    std::fs::write(project_root.path().join("index.theme"), "").unwrap();
 
     let pack = Pack::load(pack_dir.path()).unwrap();
     let palette = crate::color::Palette::default();
@@ -98,6 +96,43 @@ fn export_writes_valid_svg() {
     assert!(content.starts_with("<svg"));
     assert!(content.contains("</svg>"));
     assert!(content.contains(r#"id="layer-0""#));
+}
+
+#[test]
+fn export_theme_contains_all_category_variants() {
+    let pack_dir = tempfile::tempdir().unwrap();
+    setup_test_pack(pack_dir.path());
+
+    let pack = Pack::load(pack_dir.path()).unwrap();
+    let theme = super::generate_index_theme(&pack);
+
+    for cat in pack.categories() {
+        for var in pack.get_category_variants(&cat) {
+            let dir = format!("{cat}/{var}");
+            let section_header = format!("[{dir}]");
+            assert!(theme.contains(&section_header), "Missing section: {section_header}");
+        }
+    }
+
+    assert!(theme.contains("Context=Applications"));
+    assert!(theme.contains("Context=Status"));
+    assert!(theme.contains("Type=Scalable"));
+    assert!(theme.contains("Directories="));
+    assert!(theme.contains("Name=Miconium"));
+}
+
+#[test]
+fn export_theme_context_for_category() {
+    assert_eq!(super::context_for_category("actions"), "Actions");
+    assert_eq!(super::context_for_category("apps"), "Applications");
+    assert_eq!(super::context_for_category("categories"), "Categories");
+    assert_eq!(super::context_for_category("devices"), "Devices");
+    assert_eq!(super::context_for_category("emblems"), "Emblems");
+    assert_eq!(super::context_for_category("mimetypes"), "MimeTypes");
+    assert_eq!(super::context_for_category("places"), "Places");
+    assert_eq!(super::context_for_category("preferences"), "Preferences");
+    assert_eq!(super::context_for_category("status"), "Status");
+    assert_eq!(super::context_for_category("unknown"), "Applications");
 }
 
 #[test]

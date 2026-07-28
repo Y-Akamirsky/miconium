@@ -208,7 +208,13 @@ fn read_svg_dir(dir: &Path) -> Result<Vec<LayerData>, PackError> {
 
     let mut layers = Vec::with_capacity(entries.len());
     for path in &entries {
-        let svg_content = std::fs::read_to_string(path)?;
+        let svg_content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("Warning: skipping unreadable file {}: {e}", path.display());
+                continue;
+            }
+        };
         let name = path
             .file_name()
             .map(|s| s.to_string_lossy().into_owned())
