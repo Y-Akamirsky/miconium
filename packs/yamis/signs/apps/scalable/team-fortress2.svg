@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="64"
+   height="64"
+   version="1.1"
+   viewBox="0 0 16.933 16.933"
+   id="svg7"
+   sodipodi:docname="team-fortress2.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#9c4444"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="6.15625"
+     inkscape:cx="35.898477"
+     inkscape:cy="27.77665"
+     inkscape:window-width="2560"
+     inkscape:window-height="1376"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg7"
+     showgrid="false" />
+  <defs
+     id="defs2">
+    <style
+       id="current-color-scheme"
+       type="text/css">.ColorScheme-Text {color:#d8dee9} .ColorScheme-Highlight {color:#3b4252}</style>
+    <linearGradient
+       id="b"
+       x1="32.346001"
+       x2="32.346001"
+       y1="52.361"
+       y2="11.104"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.26457812,0,0,0.26457812,0.0629465,0.06782475)">
+      <stop
+         offset="0"
+         stop-color="#e3791c"
+         id="stop3" />
+      <stop
+         offset="1"
+         stop-color="#eebc1b"
+         id="stop4" />
+    </linearGradient>
+  </defs>
+  <metadata
+     id="metadata2">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <path
+     id="path5"
+     style="fill:#d8dee9;fill-opacity:1;stroke-width:0.317942"
+     d="m 7.9002576,1.18358 1.1241336,4.1953236 a 3.1373324,3.1373324 0 0 1 1.8063528,1.025177 L 15.037548,5.2768709 A 7.3126678,7.3126678 0 0 0 7.9002576,1.18358 Z M 5.237234,1.9147895 A 7.3126678,7.3126678 0 0 0 1.1807505,8.9897886 L 5.3880537,7.8624451 A 3.1373324,3.1373324 0 0 1 6.3679211,6.1345712 Z M 1.8957198,11.656094 a 7.3126678,7.3126678 0 0 0 7.0500183,4.099021 L 7.8150509,11.535333 A 3.1373324,3.1373324 0 0 1 6.1025238,10.528884 Z M 11.545214,9.0705195 a 3.1373324,3.1373324 0 0 1 -1.051759,1.7910055 l 1.123866,4.194326 a 7.3126678,7.3126678 0 0 0 4.135196,-7.1126748 z" />
+</svg>

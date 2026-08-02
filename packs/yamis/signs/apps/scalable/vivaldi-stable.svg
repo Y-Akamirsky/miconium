@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="svg3297"
+   height="64"
+   width="64"
+   version="1.0"
+   sodipodi:docname="com.vivaldi.Vivaldi.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#9c4444"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="9.2586794"
+     inkscape:cx="33.05007"
+     inkscape:cy="35.858246"
+     inkscape:window-width="2560"
+     inkscape:window-height="1388"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg3297" />
+  <metadata
+     id="metadata58">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs3299">
+    <style
+       id="current-color-scheme"
+       type="text/css">.ColorScheme-Text {color:#d8dee9} .ColorScheme-Highlight {color:#3b4252}</style>
+  </defs>
+  <path
+     id="path5"
+     style="fill:currentColor;stroke-width:1.48124"
+     d="m 49.494014,11.714654 c -1.75636,-0.0069 -3.651701,0.673795 -4.662189,2.423867 -3.063522,5.306178 3.798816,8.738013 -1.054368,15.680041 C 41.4344,33.876853 33.65538,36.706647 29.219525,30.781629 L 20.192604,15.030905 c -1.735419,-3.028203 -5.514709,-4.101679 -8.473229,-2.406196 l -0.338693,0.19438 C 8.4221585,14.514575 7.43639,18.317128 9.1718101,21.345331 L 26.286142,51.209267 c 1.007996,1.758902 2.706988,2.853406 4.532605,3.133652 2.5879,0.585376 5.376476,-0.580424 6.791542,-3.060022 L 54.830645,21.109719 c 1.72992,-3.031349 0.749603,-6.830652 -2.208862,-8.526242 l -0.338705,-0.194381 c -0.732823,-0.420004 -1.735253,-0.670211 -2.789064,-0.674442 z"
+     class="ColorScheme-Text"
+     sodipodi:nodetypes="ccccccccccccccc" />
+</svg>

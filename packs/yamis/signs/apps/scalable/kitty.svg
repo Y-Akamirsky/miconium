@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="64"
+   height="64"
+   version="1.1"
+   viewBox="0 0 16.933 16.933"
+   id="svg7"
+   sodipodi:docname="kitty.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#9c4444"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="8.7062522"
+     inkscape:cx="21.938257"
+     inkscape:cy="33.194536"
+     inkscape:window-width="2560"
+     inkscape:window-height="1376"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg7"
+     showgrid="false" />
+  <defs
+     id="defs2">
+    <style
+       id="current-color-scheme"
+       type="text/css">.ColorScheme-Text {color:#d8dee9} .ColorScheme-Highlight {color:#3b4252}</style>
+  </defs>
+  <metadata
+     id="metadata2">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <path
+     id="path5"
+     class="ColorScheme-Text"
+     style="fill:currentColor;fill-opacity:1;fill-rule:evenodd;stroke-width:0.304952"
+     d="m 3.7675432,4.5930075 c 0.1684997,0.00849 0.3284158,0.07612 0.4520858,0.1907148 l 0.00304,0.00278 3.1656933,3.1639441 c 0.2810253,0.2813281 0.280906,0.7356014 0,1.0168086 l -3.1654724,3.165245 -0.00261,0.0026 c -0.5165667,0.481755 -1.2712088,0.01816 -1.2149664,-0.590533 0.013944,-0.1509 0.078926,-0.297542 0.198375,-0.425621 l 0.00261,-0.0026 L 5.8634833,8.4587396 3.2060856,5.8030937 3.2032553,5.80016 C 2.7646176,5.3269895 3.1232493,4.5600359 3.7675329,4.5930061 Z M 8.7382987,10.902522 H 13.21081 c 0.180389,0 0.335722,0.05484 0.456899,0.151798 0.489558,0.391682 0.271914,1.286703 -0.456899,1.286703 H 8.7382938 c -0.728811,0 -0.9466747,-0.895021 -0.4571173,-1.286703 0.1211745,-0.09695 0.2767242,-0.151798 0.4571173,-0.151798 z"
+     sodipodi:nodetypes="sccccccscccccsscscssssc" />
+</svg>

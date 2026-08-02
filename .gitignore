@@ -1,6 +1,5 @@
 index.theme
 opencode.*
-packs/
 target/
 tui.json
 debug/

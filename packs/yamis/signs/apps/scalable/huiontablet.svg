@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="64"
+   height="64"
+   version="1.1"
+   viewBox="0 0 16.933 16.933"
+   id="svg7"
+   sodipodi:docname="huiontablet.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#9c4444"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="8.7062525"
+     inkscape:cx="41.981323"
+     inkscape:cy="34.228274"
+     inkscape:window-width="2560"
+     inkscape:window-height="1388"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg7"
+     showgrid="false" />
+  <defs
+     id="defs2">
+    <style
+       id="current-color-scheme"
+       type="text/css">.ColorScheme-Text {color:#d8dee9} .ColorScheme-Highlight {color:#3b4252}</style>
+  </defs>
+  <metadata
+     id="metadata2">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <path
+     id="path5"
+     style="fill:currentColor;stroke-width:0.261535;paint-order:fill markers stroke"
+     d="M 8.4664998,4.8826627 10.80856,8.4491325 V 10.879051 H 6.1244397 V 8.4491325 Z M 7.9209557,6.7803187 6.7670377,8.5369916 H 10.165962 L 9.012044,6.7803187 Z M 1.535841,6.8763507 5.5385416,8.3321569 V 10.879051 H 2.9916471 Z m 13.861317,0 -1.455806,4.0027003 H 11.394458 V 8.3321571 Z M 3.1627683,8.0910552 2.7280696,8.441981 3.3716892,10.212446 4.9531544,8.7985259 v -0.057211 z m 10.6074617,0 -1.790384,0.65026 v 0.057211 L 13.56131,10.212446 14.20493,8.441981 Z M 3.0156552,11.464439 H 3.3083488 13.62465 13.917345 v 0.585897 H 13.62465 3.3083488 3.0156552 Z"
+     class="ColorScheme-Text"
+     sodipodi:nodetypes="cccccccccccccccccccccccccccccccccccccccccc" />
+</svg>
