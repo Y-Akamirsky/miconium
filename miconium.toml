@@ -2,13 +2,34 @@
 path = "packs/yamis"
 name = "yamis"
 
+[pack.category_overrides]
+
+[pack.selected_variants]
+
 [colors]
-# scheme = "~/.themes/my.colors"
-# matugen = "/tmp/matugen.json"
-# manual = "~/.config/miconium/colors.toml"
+matugen = "/home/akamirsky/.cache/DankMaterialShell/dms-colors.json"
+
+[colors.map]
+frame = "background"
+sign = "foreground"
+accessory = "accent"
 
 [export]
 output = "~/.local/share/icons/Miconium"
+sizes = [
+    16,
+    24,
+    32,
+    48,
+    64,
+    96,
+    128,
+    256,
+    512,
+]
+frame_scale = 1.0
+icon_scale = 1.0
+acc_scale = 1.0
 
 [gui]
 window_width = 800

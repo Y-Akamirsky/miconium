@@ -16,7 +16,7 @@ fn overrides_with_frame() -> HashMap<String, HashMap<String, crate::config::Cate
         show_frame: true,
         show_accessories: false,
         selected_frame: None,
-        selected_accessories: Vec::new(),
+        accessories: Vec::new(),
         frame_source: "colorizable".into(),
         selected_static_frame: None,
         frame_scale: 1.0,
@@ -73,6 +73,31 @@ fn export_to_tempdir() {
 
     let progress: Vec<_> = rx.try_iter().collect();
     assert_eq!(progress.len(), 2);
+}
+
+#[test]
+fn export_returns_resolved_output_path() {
+    let pack_dir = tempfile::tempdir().unwrap();
+    setup_test_pack(pack_dir.path());
+
+    let out_dir = tempfile::tempdir().unwrap();
+    let project_root = tempfile::tempdir().unwrap();
+
+    let pack = Pack::load(pack_dir.path()).unwrap();
+    let palette = crate::color::Palette::default();
+    let export_cfg = test_export_config(out_dir.path().to_string_lossy().to_string());
+
+    let (tx, _rx) = mpsc::channel();
+    let written = export_pack(&pack, &palette, &export_cfg, &empty_overrides(), project_root.path(), &tx).unwrap();
+    assert_eq!(written, out_dir.path());
+}
+
+#[test]
+fn refresh_icon_cache_fails_when_tool_missing() {
+    // The tool may be absent in the test environment; either outcome is fine,
+    // but the function must not panic and must report the failure cleanly.
+    let dir = tempfile::tempdir().unwrap();
+    let _ = crate::export::refresh_icon_cache(dir.path());
 }
 
 #[test]

@@ -62,7 +62,7 @@ fn extract_viewbox_invalid_svg() {
 #[test]
 fn merge_two_layers() {
     let layers = vec![make_layer(FRAME_SVG, "frame"), make_layer(SIGN_SVG, "sign")];
-    let merged = merge_layers(&layers, &[]).unwrap();
+    let merged = merge_layers(&layers, &[], &[]).unwrap();
     assert!(merged.starts_with("<svg"));
     assert!(merged.ends_with("</svg>"));
     assert!(merged.contains(r#"viewBox="0 0 48 48""#));
@@ -75,7 +75,7 @@ fn merge_two_layers() {
 #[test]
 fn merge_single_layer() {
     let layers = vec![make_layer(FRAME_SVG, "frame")];
-    let merged = merge_layers(&layers, &[]).unwrap();
+    let merged = merge_layers(&layers, &[], &[]).unwrap();
     assert!(merged.contains("rect"));
     assert!(merged.contains(r#"id="layer-0""#));
 }
@@ -83,7 +83,7 @@ fn merge_single_layer() {
 #[test]
 fn merge_no_layers() {
     let layers: Vec<LayerData> = vec![];
-    let err = merge_layers(&layers, &[]).unwrap_err();
+    let err = merge_layers(&layers, &[], &[]).unwrap_err();
     assert!(matches!(err, SvgError::NoLayers));
 }
 
@@ -94,7 +94,7 @@ fn merge_with_empty_layer() {
         "empty",
     );
     let layers = vec![make_layer(FRAME_SVG, "frame"), empty];
-    let merged = merge_layers(&layers, &[]).unwrap();
+    let merged = merge_layers(&layers, &[], &[]).unwrap();
     assert!(merged.contains(r#"id="layer-0""#));
 }
 
@@ -104,6 +104,7 @@ fn inject_colors_replaces_placeholders() {
         foreground: "#ffffff".into(),
         background: "#000000".into(),
         accent: "#ff0000".into(),
+        roles: std::collections::HashMap::new(),
     };
     let svg = concat!(
         r#"<rect fill="currentForeground" stroke="currentBackground"/> "#,
@@ -133,7 +134,7 @@ fn assemble_icon_combines_all_layers() {
     let acc = make_layer(ACCESSORY_SVG, "shadow");
     let palette = Palette::default();
 
-    let icon = assemble_icon(&frame, &sign, &[acc], &palette, true, true, false, 1.0, 1.0, 1.0).unwrap();
+    let icon = assemble_icon(&frame, &sign, &[acc], &[], &palette, true, true, false, 1.0, 1.0, 1.0).unwrap();
     assert_eq!(icon.name, "frame_default_apps_firefox");
     assert!(icon.svg.contains("rect"));
     assert!(icon.svg.contains("circle"));
@@ -149,7 +150,7 @@ fn assemble_icon_no_accessories() {
     let sign = make_layer(SIGN_SVG, "sign");
     let palette = Palette::default();
 
-    let icon = assemble_icon(&frame, &sign, &[], &palette, true, true, false, 1.0, 1.0, 1.0).unwrap();
+    let icon = assemble_icon(&frame, &sign, &[], &[], &palette, true, true, false, 1.0, 1.0, 1.0).unwrap();
     assert!(icon.svg.contains("rect"));
     assert!(icon.svg.contains("circle"));
     // 3 groups: layer-0 (frame), fill-wrapper, layer-1 (sign)
@@ -174,7 +175,7 @@ fn assemble_single_injects_colors() {
 #[test]
 fn merge_layers_preserves_svg_structure() {
     let layers = vec![make_layer(FRAME_SVG, "frame"), make_layer(SIGN_SVG, "sign")];
-    let merged = merge_layers(&layers, &[]).unwrap();
+    let merged = merge_layers(&layers, &[], &[]).unwrap();
     let doc = roxmltree::Document::parse(&merged).unwrap();
     assert_eq!(doc.root_element().tag_name().name(), "svg");
     let children: Vec<_> = doc
@@ -214,7 +215,7 @@ fn merge_with_xlink_href_gradient() {
     );
     let palette = Palette::default();
     let icon = assemble_icon(
-        &frame, &sign, &[acc], &palette,
+        &frame, &sign, &[acc], &[], &palette,
         true, true, false, 1.0, 1.0, 1.0,
     ).unwrap();
     // Must be valid XML
@@ -291,7 +292,7 @@ fn assemble_icon_with_out_rnd_accessory() {
     let palette = Palette::default();
 
     let icon = assemble_icon(
-        &frame, &sign, &[acc], &palette,
+        &frame, &sign, &[acc], &[], &palette,
         true, true, false, 1.0, 1.0, 1.0,
     ).unwrap();
 
@@ -374,7 +375,7 @@ fn assemble_icon_with_auryo_sign_gets_fg_color() {
     let palette = Palette::default(); // fg = "#ffffff"
 
     let icon = assemble_icon(
-        &frame, &auryo, &[], &palette,
+        &frame, &auryo, &[], &[], &palette,
         true, true, false, 1.0, 1.0, 1.0,
     ).unwrap();
 
@@ -424,7 +425,7 @@ fn assemble_status_icon_validates_with_roxmltree() {
     let sign = make_layer(status_svg, "network-wireless");
     let palette = Palette::default();
 
-    let icon = assemble_icon(&frame, &sign, &[], &palette, true, true, false, 1.0, 1.0, 1.0).unwrap();
+    let icon = assemble_icon(&frame, &sign, &[], &[], &palette, true, true, false, 1.0, 1.0, 1.0).unwrap();
 
     let doc = roxmltree::Document::parse(&icon.svg)
         .unwrap_or_else(|e| panic!("status icon invalid SVG: {e}\n---\n{}", icon.svg));
@@ -456,13 +457,193 @@ fn assemble_status_icon_no_frame_validates() {
     let sign = make_layer(status_svg, "battery-full");
     let palette = Palette::default();
 
-    let icon = assemble_icon(&frame, &sign, &[], &palette, false, true, false, 1.0, 1.0, 1.0).unwrap();
+    let icon = assemble_icon(&frame, &sign, &[], &[], &palette, false, true, false, 1.0, 1.0, 1.0).unwrap();
 
     let doc = roxmltree::Document::parse(&icon.svg)
         .unwrap_or_else(|e| panic!("no-frame status icon invalid SVG: {e}\n---\n{}", icon.svg));
 
-    let paths: Vec<_> = doc.descendants()
+let paths: Vec<_> = doc.descendants()
         .filter(|n| n.is_element() && n.tag_name().name() == "path")
         .collect();
     assert_eq!(paths.len(), 1, "expected 1 path;\n{}", icon.svg);
+}
+
+#[test]
+fn assemble_accessory_transform_applied() {
+    // Accessory with translate/rotate/scale must appear on its group transform,
+    // on top of the auto-fit centering transform.
+    use crate::config::RotationCenter;
+    use crate::svg_engine::LayerTransform;
+    let frame = make_layer(FRAME_SVG, "frame");
+    let sign = make_layer(SIGN_SVG, "sign");
+    let acc = make_layer(ACCESSORY_SVG, "shadow");
+    let palette = Palette::default();
+
+    let transforms = [Some(LayerTransform {
+        dx: 10.0,
+        dy: 5.0,
+        rotation: 45.0,
+        scale: 1.5,
+        rotation_center: RotationCenter::Center,
+        scale_center: RotationCenter::Center,
+    })];
+    let icon = assemble_icon(
+        &frame, &sign, &[acc], &transforms, &palette,
+        true, true, false, 1.0, 1.0, 1.0,
+    ).unwrap();
+
+    let svg = &icon.svg;
+    assert!(svg.contains("rotate(45)"), "accessory rotation missing: {svg}");
+    assert!(svg.contains("scale(1.5)"), "accessory additive scale missing: {svg}");
+    assert!(svg.contains("translate(10 5)"), "accessory translate missing: {svg}");
+}
+
+#[test]
+fn accessory_scale_adds_to_category_scale() {
+    // The additive accessory scale multiplies on top of the global acc_scale,
+    // not replacing it.
+    use crate::config::RotationCenter;
+    use crate::svg_engine::LayerTransform;
+    let frame = make_layer(FRAME_SVG, "frame");
+    let sign = make_layer(SIGN_SVG, "sign");
+    let acc = make_layer(ACCESSORY_SVG, "shadow");
+    let palette = Palette::default();
+
+    let transforms = [Some(LayerTransform {
+        dx: 0.0,
+        dy: 0.0,
+        rotation: 0.0,
+        scale: 2.0,
+        rotation_center: RotationCenter::Center,
+        scale_center: RotationCenter::Center,
+    })];
+    let icon = assemble_icon(
+        &frame, &sign, &[acc], &transforms, &palette,
+        true, true, false, 1.0, 0.5, 5.0, // acc_scale=5.0 (category)
+    ).unwrap();
+
+    let svg = &icon.svg;
+    // The layer-2 group should carry both the auto-fit scale (incl. acc_scale)
+    // and the appended additive scale(2.0).
+    assert!(svg.contains("transform=\"translate"), "auto-fit transform present");
+    // additive scale appears in the transform chain
+    assert!(svg.contains("scale(2)"), "additive scale(2.0) should be applied: {svg}");
+}
+
+#[test]
+fn accessory_rotation_pivot_center() {
+    // Rotation about the canvas center of a 48x48 reference viewBox.
+    use crate::config::RotationCenter;
+    use crate::svg_engine::LayerTransform;
+    let frame = make_layer(FRAME_SVG, "frame");
+    let sign = make_layer(SIGN_SVG, "sign");
+    let acc = make_layer(ACCESSORY_SVG, "shadow");
+    let palette = Palette::default();
+
+    let transforms = [Some(LayerTransform {
+        dx: 0.0,
+        dy: 0.0,
+        rotation: 45.0,
+        scale: 1.0,
+        rotation_center: RotationCenter::Center,
+        scale_center: RotationCenter::Center,
+    })];
+    let icon = assemble_icon(
+        &frame, &sign, &[acc], &transforms, &palette,
+        true, true, false, 1.0, 1.0, 1.0,
+    ).unwrap();
+
+    let svg = &icon.svg;
+    assert!(svg.contains("translate(24 24) rotate(45) translate(-24 -24)"),
+        "center pivot rotate missing: {svg}");
+}
+
+#[test]
+fn accessory_rotation_pivot_corners() {
+    // Corner pivots must be computed from the reference viewBox corners.
+    use crate::config::RotationCenter;
+    use crate::svg_engine::LayerTransform;
+    let frame = make_layer(FRAME_SVG, "frame");
+    let sign = make_layer(SIGN_SVG, "sign");
+    let palette = Palette::default();
+
+    for (center, expected) in [
+        (RotationCenter::Ul, "translate(0 0) rotate(90) translate(0 0)"),
+        (RotationCenter::Ur, "translate(48 0) rotate(90) translate(-48 0)"),
+        (RotationCenter::Dl, "translate(0 48) rotate(90) translate(0 -48)"),
+        (RotationCenter::Dr, "translate(48 48) rotate(90) translate(-48 -48)"),
+    ] {
+        let transforms = [Some(LayerTransform {
+            dx: 0.0,
+            dy: 0.0,
+            rotation: 90.0,
+            scale: 1.0,
+            rotation_center: center,
+            scale_center: RotationCenter::Center,
+        })];
+        let icon = assemble_icon(
+            &frame, &sign, &[make_layer(ACCESSORY_SVG, "shadow")], &transforms, &palette,
+            true, true, false, 1.0, 1.0, 1.0,
+        ).unwrap();
+        assert!(icon.svg.contains(expected), "expected {expected:?} in: {}", icon.svg);
+    }
+}
+
+#[test]
+fn accessory_scale_pivot_center() {
+    // Scale about the canvas center of a 48x48 reference viewBox.
+    use crate::config::RotationCenter;
+    use crate::svg_engine::LayerTransform;
+    let frame = make_layer(FRAME_SVG, "frame");
+    let sign = make_layer(SIGN_SVG, "sign");
+    let acc = make_layer(ACCESSORY_SVG, "shadow");
+    let palette = Palette::default();
+
+    let transforms = [Some(LayerTransform {
+        dx: 0.0,
+        dy: 0.0,
+        rotation: 0.0,
+        scale: 2.0,
+        rotation_center: RotationCenter::Center,
+        scale_center: RotationCenter::Center,
+    })];
+    let icon = assemble_icon(
+        &frame, &sign, &[acc], &transforms, &palette,
+        true, true, false, 1.0, 1.0, 1.0,
+    ).unwrap();
+
+    let svg = &icon.svg;
+    assert!(svg.contains("translate(24 24) scale(2) translate(-24 -24)"),
+        "center scale pivot missing: {svg}");
+}
+
+#[test]
+fn accessory_scale_pivot_corners() {
+    // Scale pivot must use the scale_center corners of the reference viewBox.
+    use crate::config::RotationCenter;
+    use crate::svg_engine::LayerTransform;
+    let frame = make_layer(FRAME_SVG, "frame");
+    let sign = make_layer(SIGN_SVG, "sign");
+    let palette = Palette::default();
+
+    for (center, expected) in [
+        (RotationCenter::Ul, "translate(0 0) scale(2) translate(0 0)"),
+        (RotationCenter::Ur, "translate(48 0) scale(2) translate(-48 0)"),
+        (RotationCenter::Dl, "translate(0 48) scale(2) translate(0 -48)"),
+        (RotationCenter::Dr, "translate(48 48) scale(2) translate(-48 -48)"),
+    ] {
+        let transforms = [Some(LayerTransform {
+            dx: 0.0,
+            dy: 0.0,
+            rotation: 0.0,
+            scale: 2.0,
+            rotation_center: RotationCenter::Center,
+            scale_center: center,
+        })];
+        let icon = assemble_icon(
+            &frame, &sign, &[make_layer(ACCESSORY_SVG, "shadow")], &transforms, &palette,
+            true, true, false, 1.0, 1.0, 1.0,
+        ).unwrap();
+        assert!(icon.svg.contains(expected), "expected {expected:?} in: {}", icon.svg);
+    }
 }

@@ -1,6 +1,7 @@
 #![allow(clippy::format_push_string)]
 
 use crate::color::Palette;
+use crate::config::RotationCenter;
 use crate::pack::LayerData;
 use thiserror::Error;
 
@@ -18,6 +19,44 @@ pub enum SvgError {
 pub struct AssembledIcon {
     pub svg: String,
     pub name: String,
+}
+
+/// A user transform applied to a layer on top of auto-fit centering.
+/// `rotation_center` selects the pivot within the icon canvas: rotation is
+/// emitted as `translate(px py) rotate(a) translate(-px -py)`, so the layer
+/// spins around the chosen point (canvas center or a corner) instead of its
+/// own local origin. `scale_center` selects the pivot for scaling (emitted as
+/// `translate(sx sy) scale(s) translate(-sx -sy)`).
+#[derive(Debug, Clone, Copy)]
+pub struct LayerTransform {
+    pub dx: f64,
+    pub dy: f64,
+    pub rotation: f64,
+    pub scale: f64,
+    pub rotation_center: RotationCenter,
+    pub scale_center: RotationCenter,
+}
+
+impl LayerTransform {
+    fn pivot(&self, rx: f64, ry: f64, rw: f64, rh: f64) -> (f64, f64) {
+        match self.rotation_center {
+            RotationCenter::Center => (rx + rw / 2.0, ry + rh / 2.0),
+            RotationCenter::Ul => (rx, ry),
+            RotationCenter::Ur => (rx + rw, ry),
+            RotationCenter::Dl => (rx, ry + rh),
+            RotationCenter::Dr => (rx + rw, ry + rh),
+        }
+    }
+
+    fn scale_pivot(&self, rx: f64, ry: f64, rw: f64, rh: f64) -> (f64, f64) {
+        match self.scale_center {
+            RotationCenter::Center => (rx + rw / 2.0, ry + rh / 2.0),
+            RotationCenter::Ul => (rx, ry),
+            RotationCenter::Ur => (rx + rw, ry),
+            RotationCenter::Dl => (rx, ry + rh),
+            RotationCenter::Dr => (rx + rw, ry + rh),
+        }
+    }
 }
 
 /// Extract the body content (between `<svg>` and `</svg>`) from an SVG string.
@@ -129,7 +168,14 @@ fn collect_namespaces(svg: &str) -> Vec<String> {
 /// The first layer provides the viewBox and dimensions for the output.
 /// Subsequent layers are centered within the first layer's viewBox.
 /// `user_scales` — optional per-layer multipliers applied on top of auto-fit scaling.
-pub fn merge_layers(layers: &[LayerData], user_scales: &[f64]) -> Result<String, SvgError> {
+/// `extra_transforms` — optional per-layer user transforms (e.g. `translate(..) rotate(..) scale(..)`)
+/// appended to a layer's group, applied on top of auto-fit centering.
+#[allow(clippy::float_cmp)]
+pub fn merge_layers(
+    layers: &[LayerData],
+    user_scales: &[f64],
+    extra_transforms: &[Option<LayerTransform>],
+) -> Result<String, SvgError> {
     let first = layers.first().ok_or(SvgError::NoLayers)?;
     let viewbox = extract_viewbox(&first.svg_content)?;
     let (width, height) = extract_dimensions(&first.svg_content);
@@ -162,8 +208,7 @@ pub fn merge_layers(layers: &[LayerData], user_scales: &[f64]) -> Result<String,
             inner = prefix_ids(&inner, i);
         }
 
-        let mut tag = format!(r#"<g id="layer-{i}""#);
-
+        let mut transform = String::new();
         if i > 0 {
             if let Some((rx, ry, rw, rh)) = ref_vb {
                 if let Some((lx, ly, lw, lh)) = parse_viewbox_values(&layer.svg_content) {
@@ -172,12 +217,43 @@ pub fn merge_layers(layers: &[LayerData], user_scales: &[f64]) -> Result<String,
                         let s = (rw / lw).min(rh / lh) * user_s;
                         let dx = rx + (rw - lw * s) / 2.0 - lx * s;
                         let dy = ry + (rh - lh * s) / 2.0 - ly * s;
-                        tag.push_str(&format!(
-                            r#" transform="translate({dx:.3} {dy:.3}) scale({s:.3})""#,
-                        ));
+                        transform.push_str(&format!("translate({dx:.3} {dy:.3}) scale({s:.3})"));
                     }
                 }
             }
+        }
+        if let Some(extra) = extra_transforms.get(i).and_then(|e| e.as_ref()) {
+            if !transform.is_empty() {
+                transform.push(' ');
+            }
+            let (px, py) = ref_vb.map_or((0.0, 0.0), |(rx, ry, rw, rh)| extra.pivot(rx, ry, rw, rh));
+            let (nx, ny) = (
+                if px == 0.0 { 0.0 } else { -px },
+                if py == 0.0 { 0.0 } else { -py },
+            );
+            transform.push_str(&format!(
+                "translate({} {}) translate({} {}) rotate({}) translate({nx} {ny})",
+                extra.dx, extra.dy, px, py, extra.rotation
+            ));
+            // Scale pivot: only when the scale factor actually differs from the
+            // identity, to keep the default transform short.
+            if extra.scale != 1.0 {
+                let (sx, sy) =
+                    ref_vb.map_or((0.0, 0.0), |(rx, ry, rw, rh)| extra.scale_pivot(rx, ry, rw, rh));
+                let (nsx, nsy) = (
+                    if sx == 0.0 { 0.0 } else { -sx },
+                    if sy == 0.0 { 0.0 } else { -sy },
+                );
+                transform.push_str(&format!(
+                    " translate({sx} {sy}) scale({}) translate({nsx} {nsy})",
+                    extra.scale
+                ));
+            }
+        }
+
+        let mut tag = format!(r#"<g id="layer-{i}""#);
+        if !transform.is_empty() {
+            tag.push_str(&format!(r#" transform="{transform}""#));
         }
 
         tag.push('>');
@@ -196,10 +272,13 @@ pub fn merge_layers(layers: &[LayerData], user_scales: &[f64]) -> Result<String,
 /// When `frame_is_static` is true, the frame layer is NOT colorized.
 /// Accessories whose name starts with `"st-"` are NOT colorized.
 /// `frame_scale`, `icon_scale`, `acc_scale` multiply the auto-calculated sizes.
+/// `accessory_transforms` — optional per-accessory transforms applied on top
+/// of auto-fit centering (parallel to `accessories`).
 pub fn assemble_icon(
     frame: &LayerData,
     sign: &LayerData,
     accessories: &[LayerData],
+    accessory_transforms: &[Option<LayerTransform>],
     palette: &Palette,
     use_frame: bool,
     use_accessories: bool,
@@ -210,6 +289,7 @@ pub fn assemble_icon(
 ) -> Result<AssembledIcon, SvgError> {
     let mut layers = Vec::with_capacity(2 + accessories.len());
     let mut layer_scales: Vec<f64> = Vec::new();
+    let mut layer_transforms: Vec<Option<LayerTransform>> = Vec::new();
 
     if use_frame {
         let mut f = frame.clone();
@@ -219,6 +299,7 @@ pub fn assemble_icon(
         }
         layers.push(f);
         layer_scales.push(frame_scale);
+        layer_transforms.push(None);
     }
 
     let mut s = sign.clone();
@@ -227,9 +308,10 @@ pub fn assemble_icon(
     s.svg_content = wrap_svg_body_with_fill(&s.svg_content, &palette.foreground);
     layers.push(s);
     layer_scales.push(icon_scale);
+    layer_transforms.push(None);
 
     if use_accessories {
-        for acc in accessories {
+        for (ai, acc) in accessories.iter().enumerate() {
             let mut a = acc.clone();
             if !a.name.starts_with("st-") {
                 a.svg_content = inject_colors(&a.svg_content, palette, false);
@@ -238,10 +320,11 @@ pub fn assemble_icon(
             }
             layers.push(a);
             layer_scales.push(acc_scale);
+            layer_transforms.push(accessory_transforms.get(ai).copied().flatten());
         }
     }
 
-    let merged = merge_layers(&layers, &layer_scales)?;
+    let merged = merge_layers(&layers, &layer_scales, &layer_transforms)?;
 
     let name = if use_frame {
         format!("{}_{}", frame.name, sign.name)

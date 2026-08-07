@@ -8,11 +8,13 @@ pub enum ConfigError {
     Io(#[from] std::io::Error),
     #[error("failed to parse config: {0}")]
     Parse(#[from] toml::de::Error),
+    #[error("failed to serialize config: {0}")]
+    TomlSer(#[from] toml::ser::Error),
     #[error("no config found at default paths")]
     NotFound,
 }
 
-#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub struct Config {
     #[serde(default)]
     pub pack: PackConfig,
@@ -24,7 +26,7 @@ pub struct Config {
     pub gui: GuiConfig,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PackConfig {
     pub path: Option<String>,
     #[serde(default = "default_pack_name")]
@@ -50,6 +52,96 @@ impl Default for PackConfig {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Default, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RotationCenter {
+    #[default]
+    Center,
+    Ul,
+    Ur,
+    Dl,
+    Dr,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct AccessoryConfig {
+    pub name: String,
+    #[serde(default)]
+    pub x: f64,
+    #[serde(default)]
+    pub y: f64,
+    #[serde(default)]
+    pub rotation: f64,
+    #[serde(default = "default_scale")]
+    pub scale: f64,
+    #[serde(default)]
+    pub rotation_center: RotationCenter,
+    #[serde(default)]
+    pub scale_center: RotationCenter,
+}
+
+impl Default for AccessoryConfig {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            x: 0.0,
+            y: 0.0,
+            rotation: 0.0,
+            scale: 1.0,
+            rotation_center: RotationCenter::default(),
+            scale_center: RotationCenter::default(),
+        }
+    }
+}
+
+impl AccessoryConfig {
+    #[must_use]
+    pub fn has_offset(&self) -> bool {
+        #[allow(clippy::float_cmp)]
+        {
+            self.x != 0.0 || self.y != 0.0 || self.rotation != 0.0 || self.scale != 1.0
+            || self.rotation_center != RotationCenter::Center
+            || self.scale_center != RotationCenter::Center
+        }
+    }
+
+    #[must_use]
+    pub fn layer_transform(&self) -> crate::svg_engine::LayerTransform {
+        crate::svg_engine::LayerTransform {
+            dx: self.x,
+            dy: self.y,
+            rotation: self.rotation,
+            scale: self.scale,
+            rotation_center: self.rotation_center,
+            scale_center: self.scale_center,
+        }
+    }
+
+    /// The user-facing name of the current rotation center.
+    #[must_use]
+    pub fn rotation_center_label(&self) -> &str {
+        match self.rotation_center {
+            RotationCenter::Center => "Center",
+            RotationCenter::Ul => "UL",
+            RotationCenter::Ur => "UR",
+            RotationCenter::Dl => "DL",
+            RotationCenter::Dr => "DR",
+        }
+    }
+
+    /// The user-facing name of the current scale center.
+    #[must_use]
+    pub fn scale_center_label(&self) -> &str {
+        match self.scale_center {
+            RotationCenter::Center => "Center",
+            RotationCenter::Ul => "UL",
+            RotationCenter::Ur => "UR",
+            RotationCenter::Dl => "DL",
+            RotationCenter::Dr => "DR",
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct CategoryOverride {
     #[serde(default = "default_true")]
@@ -59,7 +151,7 @@ pub struct CategoryOverride {
     #[serde(default)]
     pub selected_frame: Option<String>,
     #[serde(default)]
-    pub selected_accessories: Vec<String>,
+    pub accessories: Vec<AccessoryConfig>,
     #[serde(default = "default_frame_source")]
     pub frame_source: String,
     #[serde(default)]
@@ -84,7 +176,7 @@ pub fn default_category_override(_category: &str) -> CategoryOverride {
         show_frame: false,
         show_accessories: false,
         selected_frame: None,
-        selected_accessories: Vec::new(),
+        accessories: Vec::new(),
         frame_source: default_frame_source(),
         selected_static_frame: None,
         frame_scale: 1.0,
@@ -112,23 +204,45 @@ impl PackConfig {
     }
 }
 
-#[derive(Debug, Clone, Default, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct ColorsConfig {
     pub scheme: Option<String>,
     pub matugen: Option<String>,
     pub manual: Option<String>,
     pub overrides: Option<ColorOverrides>,
+    pub map: LayerMap,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+/// Which palette role is injected into each SVG layer. `frame` maps onto the
+/// background color, `sign` onto the foreground color and `accessory` onto the
+/// accent color that the SVG engine substitutes into each layer.
+#[derive(Debug, Clone, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct LayerMap {
+    pub frame: String,
+    pub sign: String,
+    pub accessory: String,
+}
+
+impl Default for LayerMap {
+    fn default() -> Self {
+        Self {
+            frame: "background".into(),
+            sign: "foreground".into(),
+            accessory: "accent".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct ColorOverrides {
     pub foreground: Option<String>,
     pub background: Option<String>,
     pub accent: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct ExportConfig {
     pub output: Option<String>,
@@ -150,7 +264,7 @@ impl Default for ExportConfig {
     }
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct GuiConfig {
     pub window_width: i32,
@@ -212,6 +326,28 @@ pub fn load_or_default() -> Result<Config, ConfigError> {
 #[must_use]
 pub fn find_config_path() -> Option<PathBuf> {
     default_config_paths().into_iter().find(|p| p.is_file())
+}
+
+/// The path `save` will write to: the first existing config file, otherwise
+/// the user config default (`~/.config/miconium/config.toml`).
+#[must_use]
+pub fn save_config_path() -> PathBuf {
+    find_config_path().unwrap_or_else(|| {
+        let home = std::env::var("HOME").map_or_else(|_| std::env::temp_dir(), PathBuf::from);
+        home.join(".config/miconium/config.toml")
+    })
+}
+
+/// Best-effort atomic-ish save of `config` to `save_config_path()`.
+/// Errors are propagated so the caller can surface them in the GUI.
+pub fn save(config: &Config) -> Result<(), ConfigError> {
+    let path = save_config_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let toml = toml::to_string_pretty(config)?;
+    std::fs::write(&path, toml)?;
+    Ok(())
 }
 
 #[cfg(test)]

@@ -5,7 +5,7 @@ use std::sync::mpsc;
 use crate::color::Palette;
 use crate::config::{CategoryOverride, ExportConfig};
 use crate::pack::Pack;
-use crate::svg_engine;
+use crate::svg_engine::{self, LayerTransform};
 
 use thiserror::Error;
 
@@ -19,6 +19,8 @@ pub enum ExportError {
     NoFrames,
     #[error("symlink error: {0}")]
     Symlink(String),
+    #[error("icon cache update failed: {0}")]
+    CacheUpdate(String),
 }
 
 #[derive(Debug, Clone)]
@@ -191,15 +193,21 @@ fn run_export(
             let (frame_data, frame_is_static) = resolve_frame(&cat_overrides, pack)?;
 
             let accessories: Vec<crate::pack::LayerData> = if cat_overrides.show_accessories {
-                if cat_overrides.selected_accessories.is_empty() {
-                    pack.accessories.iter().take(1).cloned().collect()
-                } else {
-                    pack.accessories
-                        .iter()
-                        .filter(|a| cat_overrides.selected_accessories.contains(&a.name))
-                        .cloned()
-                        .collect()
-                }
+                cat_overrides
+                    .accessories
+                    .iter()
+                    .filter_map(|ac| pack.accessories.iter().find(|a| a.name == ac.name).cloned())
+                    .collect()
+            } else {
+                Vec::new()
+            };
+
+            let accessory_transforms: Vec<Option<LayerTransform>> = if cat_overrides.show_accessories {
+                cat_overrides
+                    .accessories
+                    .iter()
+                    .map(|ac| if ac.has_offset() { Some(ac.layer_transform()) } else { None })
+                    .collect()
             } else {
                 Vec::new()
             };
@@ -210,6 +218,7 @@ fn run_export(
                     &frame_data,
                     sign,
                     &accessories,
+                    &accessory_transforms,
                     palette,
                     cat_overrides.show_frame,
                     cat_overrides.show_accessories,
@@ -304,21 +313,42 @@ pub fn export_pack(
     category_overrides: &HashMap<String, HashMap<String, CategoryOverride>>,
     project_root: &Path,
     progress_tx: &mpsc::Sender<ExportProgress>,
-) -> Result<(), ExportError> {
+) -> Result<PathBuf, ExportError> {
     let output_path = resolve_output_path(export_cfg);
 
     match run_export(&output_path, pack, palette, category_overrides, project_root, progress_tx) {
-        Ok(()) => Ok(()),
+        Ok(()) => Ok(output_path),
         Err(ExportError::Io(_)) => {
             let fallback = PathBuf::from("/tmp/miconium-export");
             eprintln!("Export: IO error on {}, retrying with {}", output_path.display(), fallback.display());
-            run_export(&fallback, pack, palette, category_overrides, project_root, progress_tx)
+            run_export(&fallback, pack, palette, category_overrides, project_root, progress_tx)?;
+            Ok(fallback)
         }
         Err(e) => Err(e),
     }
 }
 
-fn resolve_output_path(config: &ExportConfig) -> PathBuf {
+/// Run `gtk-update-icon-cache -f <dir>` to refresh the icon theme cache after
+/// a successful "Apply" export. Fails (without panicking) when the tool is
+/// missing or exits non-zero, so callers can warn the user.
+pub fn refresh_icon_cache(theme_dir: &Path) -> Result<(), ExportError> {
+    let result = std::process::Command::new("gtk-update-icon-cache")
+        .arg("-f")
+        .arg(theme_dir)
+        .output();
+    match result {
+        Ok(output) if output.status.success() => Ok(()),
+        Ok(output) => Err(ExportError::CacheUpdate(format!(
+            "gtk-update-icon-cache exited with {status}: {err}",
+            status = output.status,
+            err = String::from_utf8_lossy(&output.stderr).trim(),
+        ))),
+        Err(e) => Err(ExportError::CacheUpdate(e.to_string())),
+    }
+}
+
+#[must_use]
+pub fn resolve_output_path(config: &ExportConfig) -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_default();
     let fallback = || PathBuf::from("/tmp/miconium-export");
     if let Some(path) = &config.output {

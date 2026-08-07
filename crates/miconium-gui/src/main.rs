@@ -18,8 +18,10 @@ struct AppData {
     config: Config,
     pack: Option<Pack>,
     palette: Palette,
+    base_palette: Palette,
     preview_image: Option<gtk::Image>,
     color_source: String,
+    pack_label: Option<gtk::Label>,
     frame_scale: f64,
     icon_scale: f64,
     acc_scale: f64,
@@ -49,14 +51,17 @@ fn main() -> glib::ExitCode {
 
 fn build_ui(app: &gtk::Application) {
     let config = config::load_or_default().unwrap_or_default();
-    let palette = color::resolve_palette(&config.colors).unwrap_or_default();
+    let base_palette = color::resolve_palette(&config.colors).unwrap_or_default();
+    let palette = base_palette.clone().with_layer_map(&config.colors.map);
 
     let data = Rc::new(RefCell::new(AppData {
         config,
         pack: None,
         palette,
+        base_palette,
         preview_image: None,
         color_source: "auto".into(),
+        pack_label: None,
         frame_scale: 1.0,
         icon_scale: 1.0,
         acc_scale: 1.0,
@@ -69,7 +74,7 @@ fn build_ui(app: &gtk::Application) {
 
     let window = gtk::ApplicationWindow::new(app);
     window.set_title("Miconium");
-    window.set_default_size(960, 680);
+    window.set_default_size(1200, 720);
 
     let header = gtk::HeaderBar::new();
     header.set_title(Some("Miconium"));
@@ -123,6 +128,7 @@ fn try_load_initial_pack(
                         header_clone.set_subtitle(Some(&format!("Pack: {path}")));
                         rebuild_dynamic_sections(&data);
                         rebuild_right(&data, &paned);
+                        update_pack_label(&data);
                         show_first_preview(&data);
                     }
                     Err(e) => {
@@ -165,6 +171,7 @@ fn build_sidebar(data: &Rc<RefCell<AppData>>, header: &gtk::HeaderBar) -> gtk::B
         pack_label.set_xalign(0.0);
     }
     pack_box.pack_start(&pack_label, false, false, 0);
+    data.borrow_mut().pack_label = Some(pack_label);
 
     let browse_btn = gtk::Button::with_label("Browse…");
     let data_clone = Rc::downgrade(data);
@@ -186,19 +193,32 @@ fn build_sidebar(data: &Rc<RefCell<AppData>>, header: &gtk::HeaderBar) -> gtk::B
     build_color_section(&sidebar, data);
     build_scale_section(&sidebar, data);
 
-    let export_btn = gtk::Button::with_label("Export Pack");
-    export_btn.set_margin_top(12);
+    let apply_btn = gtk::Button::with_label("Apply");
+    apply_btn.set_margin_top(12);
     let data_clone = Rc::downgrade(data);
-    export_btn.connect_clicked(move |btn| {
-        eprintln!("Export button clicked");
+    apply_btn.connect_clicked(move |btn| {
+        eprintln!("Apply button clicked");
         let Some(data) = data_clone.upgrade() else {
-            eprintln!("Export: data weak ref expired");
+            eprintln!("Apply: data weak ref expired");
             return;
         };
         let toplevel: gtk::Window = btn.toplevel().and_downcast().unwrap();
-        start_export(&data, &toplevel);
+        run_export_dialog(&data, &toplevel, None, true);
     });
-    sidebar.pack_start(&export_btn, false, false, 0);
+    sidebar.pack_start(&apply_btn, false, false, 0);
+
+    let export_to_btn = gtk::Button::with_label("Export to…");
+    let data_clone = Rc::downgrade(data);
+    export_to_btn.connect_clicked(move |btn| {
+        eprintln!("Export to… button clicked");
+        let Some(data) = data_clone.upgrade() else {
+            eprintln!("Export to…: data weak ref expired");
+            return;
+        };
+        let toplevel: gtk::Window = btn.toplevel().and_downcast().unwrap();
+        choose_export_dir(&data, &toplevel);
+    });
+    sidebar.pack_start(&export_to_btn, false, false, 0);
 
     sidebar.pack_start(
         &gtk::Separator::new(gtk::Orientation::Horizontal),
@@ -253,11 +273,11 @@ fn build_right_area(data: &Rc<RefCell<AppData>>) -> gtk::Box {
     if data.borrow().pack.is_some() {
         let categories_scrolled = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
         categories_scrolled.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
-        categories_scrolled.set_min_content_width(220);
+        categories_scrolled.set_min_content_width(440);
         let cat_box = build_categories_panel(data);
         categories_scrolled.add(&cat_box);
         right_paned.pack2(&categories_scrolled, false, false);
-        right_paned.set_position(600);
+        right_paned.set_position(520);
     }
 
     right_box.pack_start(&right_paned, true, true, 0);
@@ -366,13 +386,11 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
         let acc_cb = gtk::CheckButton::with_label("Accessories");
         row.pack_start(&acc_cb, false, false, 0);
 
-        let acc_combo = gtk::ComboBoxText::new();
-        acc_combo.append_text("all");
-        for name in &acc_names {
-            acc_combo.append_text(name);
-        }
-        acc_combo.set_active(Some(0));
-        row.pack_start(&acc_combo, false, false, 0);
+        let acc_box = gtk::Box::new(gtk::Orientation::Vertical, 2);
+        row.pack_start(&acc_box, false, false, 0);
+
+        let add_acc_btn = gtk::Button::with_label("+ Add Accessory");
+        row.pack_start(&add_acc_btn, false, false, 0);
 
         let current_variant = || {
             variant_combo.active_text().unwrap_or_else(|| "scalable".into())
@@ -409,6 +427,28 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
             }
         }
 
+        rebuild_acc_modules(&acc_box, data, cat, &acc_names);
+
+        // --- Signal: Add accessory button ---
+        let add_data = Rc::downgrade(data);
+        let add_cat = cat.to_string();
+        let add_names = acc_names.clone();
+        let add_box = acc_box.clone();
+        add_acc_btn.connect_clicked(move |_| {
+            let Some(data) = add_data.upgrade() else { return };
+            {
+                let mut d = data.borrow_mut();
+                let variant = d.config.pack.selected_variant(&add_cat);
+                let def = d.config.pack.variant_override(&add_cat, &variant);
+                let ov = d.config.pack.category_overrides
+                    .entry(add_cat.clone()).or_default()
+                    .entry(variant).or_insert_with(|| category_override_defaults(&def));
+                ov.accessories.push(miconium_core::config::AccessoryConfig::default());
+            }
+            rebuild_acc_modules(&add_box, &data, &add_cat, &add_names);
+            rebuild_preview(&data);
+        });
+
         // Helper: get/save overrides for current variant
         let cat_owned = cat.to_string();
 
@@ -425,7 +465,8 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
         let ac_slider_v = ac_slider.clone();
         let frame_cb_v = frame_cb.clone();
         let acc_cb_v = acc_cb.clone();
-        let acc_combo_v = acc_combo.clone();
+        let acc_box_v = acc_box.clone();
+        let acc_names_v = acc_names.clone();
         variant_combo.connect_changed(move |combo| {
             let Some(data) = data_v.upgrade() else { return };
             let variant = combo.active_text().unwrap_or_else(|| "scalable".into());
@@ -442,16 +483,21 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
                 _ => 0,
             };
             source_combo_v.set_active(Some(src_idx));
-            let (pool, _) = match ov.frame_source.as_str() {
+            let (pool, sel_name) = match ov.frame_source.as_str() {
                 "static_dark" => (&fn_dark_v, ov.selected_static_frame.as_ref()),
                 "static_light" => (&fn_light_v, ov.selected_static_frame.as_ref()),
                 _ => (&fn_fc_v, ov.selected_frame.as_ref()),
             };
             populate_frame_combo(&frame_combo_v, pool);
-            frame_combo_v.set_active(Some(0));
-            acc_combo_v.set_active(Some(0));
-            let pack = data.borrow().pack.clone();
-            if let Some(pack) = pack {
+            if let Some(name) = sel_name {
+                if let Some(idx) = pool.iter().position(|n| n == name) {
+                    #[allow(clippy::cast_possible_truncation)]
+                    frame_combo_v.set_active(Some(idx as u32 + 1));
+                }
+            }
+            rebuild_acc_modules(&acc_box_v, &data, &cat_v, &acc_names_v);
+            let packv = data.borrow().pack.clone();
+            if let Some(pack) = packv {
                 data.borrow_mut().preview_sign_name = pick_random_sign(&pack, &cat_v, &variant);
             }
             rebuild_preview(&data);
@@ -528,7 +574,7 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
         let fn_dark = static_dark_names.clone();
         let fn_light = static_light_names.clone();
         let frame_combo_src = frame_combo.clone();
-        source_combo.connect_changed(move |combo| {
+source_combo.connect_changed(move |combo| {
             let active = combo.active_text().unwrap_or_default();
             let pool: &[String] = match active.as_str() {
                 "static dark" => &fn_dark,
@@ -598,29 +644,6 @@ fn build_categories_panel(data: &Rc<RefCell<AppData>>) -> gtk::Box {
             rebuild_preview(&data);
         });
 
-        // --- Signal: Accessories combo ---
-        let data_acco = Rc::downgrade(data);
-        let cat_acco = cat_owned.clone();
-        acc_combo.connect_changed(move |combo| {
-            let Some(data) = data_acco.upgrade() else { return };
-            let variant = data.borrow().config.pack.selected_variant(&cat_acco);
-            let def = data.borrow().config.pack.variant_override(&cat_acco, &variant);
-            let mut d2 = data.borrow_mut();
-            let ov = d2.config.pack.category_overrides
-                .entry(cat_acco.clone()).or_default()
-                .entry(variant).or_insert_with(|| category_override_defaults(&def));
-            let active = combo.active_text();
-            match active.as_deref() {
-                None | Some("all") => ov.selected_accessories.clear(),
-                Some(name) => {
-                    ov.selected_accessories.clear();
-                    ov.selected_accessories.push(name.to_string());
-                }
-            }
-            drop(d2);
-            rebuild_preview(&data);
-        });
-
         expander.add(&row);
         list.add(&expander);
     }
@@ -644,13 +667,261 @@ fn category_override_defaults(def: &miconium_core::config::CategoryOverride) -> 
         show_frame: def.show_frame,
         show_accessories: def.show_accessories,
         selected_frame: None,
-        selected_accessories: Vec::new(),
+        accessories: Vec::new(),
         frame_source: def.frame_source.clone(),
         selected_static_frame: None,
         frame_scale: def.frame_scale,
         icon_scale: def.icon_scale,
         acc_scale: def.acc_scale,
     }
+}
+
+#[allow(clippy::too_many_lines)]
+fn build_acc_module_row(
+    container: &gtk::Box,
+    data: &Rc<RefCell<AppData>>,
+    cat: &str,
+    acc_names: &[String],
+    idx: usize,
+    ac: &miconium_core::config::AccessoryConfig,
+) -> gtk::Box {
+    use miconium_core::config::{AccessoryConfig, RotationCenter};
+
+    let row = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    row.set_margin_start(12);
+
+    let top = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+    let combo = gtk::ComboBoxText::new();
+    for name in acc_names {
+        combo.append_text(name);
+    }
+    if let Some(i) = acc_names.iter().position(|n| n == &ac.name) {
+        #[allow(clippy::cast_possible_truncation)]
+        combo.set_active(Some(i as u32));
+    }
+    let rm = gtk::Button::with_label("✕");
+    top.pack_start(&combo, true, true, 0);
+    top.pack_start(&rm, false, false, 0);
+    row.pack_start(&top, false, false, 0);
+
+    let sliders = [
+        ("X", ac.x, "x", (-100.0, 100.0)),
+        ("Y", ac.y, "y", (-100.0, 100.0)),
+        ("Rot", ac.rotation, "rotation", (-180.0, 180.0)),
+        ("Scl", ac.scale, "scale", (0.1, 3.0)),
+    ];
+
+    for (label, value, key, (lo, hi)) in sliders {
+        let srow = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        let lbl = gtk::Label::new(Some(label));
+        lbl.set_width_chars(3);
+        srow.pack_start(&lbl, false, false, 0);
+
+        let adj = gtk::Adjustment::new(value, lo, hi, 0.1, 1.0, 0.0);
+        let slider = gtk::Scale::new(gtk::Orientation::Horizontal, Some(&adj));
+        slider.set_digits(1);
+        slider.set_size_request(120, -1);
+        slider.set_value_pos(gtk::PositionType::Right);
+        srow.pack_start(&slider, true, true, 0);
+        row.pack_start(&srow, false, false, 0);
+
+        let data_c = Rc::downgrade(data);
+        let cat_c = cat.to_string();
+        let key_c = key.to_string();
+        slider.connect_value_changed(move |s| {
+            let Some(data) = data_c.upgrade() else { return };
+            let val = s.value();
+            {
+                let mut d = data.borrow_mut();
+                let variant = d.config.pack.selected_variant(&cat_c);
+                let def = d.config.pack.variant_override(&cat_c, &variant);
+                let ov = d.config.pack.category_overrides
+                    .entry(cat_c.clone()).or_default()
+                    .entry(variant).or_insert_with(|| category_override_defaults(&def));
+                while ov.accessories.len() <= idx {
+                    ov.accessories.push(AccessoryConfig::default());
+                }
+                let ac = &mut ov.accessories[idx];
+                match key_c.as_str() {
+                    "x" => ac.x = val,
+                    "y" => ac.y = val,
+                    "rotation" => ac.rotation = val,
+                    "scale" => ac.scale = val,
+                    _ => {}
+                }
+            }
+            rebuild_preview(&data);
+        });
+    }
+
+    // Rotation pivot (center / corners).
+    let pivot_row = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+    let pivot_lbl = gtk::Label::new(Some("Pivot"));
+    pivot_lbl.set_width_chars(7);
+    pivot_row.pack_start(&pivot_lbl, false, false, 0);
+    let pivot_combo = gtk::ComboBoxText::new();
+    pivot_combo.set_hexpand(true);
+    for c in &["Center", "UL", "UR", "DL", "DR"] {
+        pivot_combo.append_text(c);
+    }
+    let pivot_list = [
+        ("Center", RotationCenter::Center),
+        ("UL", RotationCenter::Ul),
+        ("UR", RotationCenter::Ur),
+        ("DL", RotationCenter::Dl),
+        ("DR", RotationCenter::Dr),
+    ];
+    if let Some(i) = pivot_list.iter().position(|(_l, c)| *c == ac.rotation_center) {
+        #[allow(clippy::cast_possible_truncation)]
+        pivot_combo.set_active(Some(i as u32));
+    }
+    pivot_row.pack_start(&pivot_combo, true, true, 0);
+    row.pack_start(&pivot_row, false, false, 0);
+
+    let data_p = Rc::downgrade(data);
+    let cat_p = cat.to_string();
+    pivot_combo.connect_changed(move |combo| {
+        let Some(data) = data_p.upgrade() else { return };
+        let Some(label) = combo.active_text() else { return };
+        let center = pivot_list
+            .iter()
+            .find(|(l, _)| *l == label.as_str())
+            .map_or(RotationCenter::Center, |(_, c)| *c);
+        {
+            let mut d = data.borrow_mut();
+            let variant = d.config.pack.selected_variant(&cat_p);
+            let def = d.config.pack.variant_override(&cat_p, &variant);
+            let ov = d.config.pack.category_overrides
+                .entry(cat_p.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
+            while ov.accessories.len() <= idx {
+                ov.accessories.push(AccessoryConfig::default());
+            }
+            ov.accessories[idx].rotation_center = center;
+        }
+        rebuild_preview(&data);
+    });
+
+    // Scale pivot (center / corners). Independent from the rotation pivot.
+    let scale_pivot_row = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+    let scale_pivot_lbl = gtk::Label::new(Some("Scl."));
+    scale_pivot_lbl.set_width_chars(7);
+    scale_pivot_row.pack_start(&scale_pivot_lbl, false, false, 0);
+    let scale_pivot_combo = gtk::ComboBoxText::new();
+    scale_pivot_combo.set_hexpand(true);
+    for c in &["Center", "UL", "UR", "DL", "DR"] {
+        scale_pivot_combo.append_text(c);
+    }
+    let scale_pivot_list = [
+        ("Center", RotationCenter::Center),
+        ("UL", RotationCenter::Ul),
+        ("UR", RotationCenter::Ur),
+        ("DL", RotationCenter::Dl),
+        ("DR", RotationCenter::Dr),
+    ];
+    if let Some(i) = scale_pivot_list.iter().position(|(_l, c)| *c == ac.scale_center) {
+        #[allow(clippy::cast_possible_truncation)]
+        scale_pivot_combo.set_active(Some(i as u32));
+    }
+    scale_pivot_row.pack_start(&scale_pivot_combo, true, true, 0);
+    row.pack_start(&scale_pivot_row, false, false, 0);
+
+    let data_scale = Rc::downgrade(data);
+    let cat_scale = cat.to_string();
+    scale_pivot_combo.connect_changed(move |combo| {
+        let Some(data) = data_scale.upgrade() else { return };
+        let Some(label) = combo.active_text() else { return };
+        let center = scale_pivot_list
+            .iter()
+            .find(|(l, _)| *l == label.as_str())
+            .map_or(RotationCenter::Center, |(_, c)| *c);
+        {
+            let mut d = data.borrow_mut();
+            let variant = d.config.pack.selected_variant(&cat_scale);
+            let def = d.config.pack.variant_override(&cat_scale, &variant);
+            let ov = d.config.pack.category_overrides
+                .entry(cat_scale.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
+            while ov.accessories.len() <= idx {
+                ov.accessories.push(AccessoryConfig::default());
+            }
+            ov.accessories[idx].scale_center = center;
+        }
+        rebuild_preview(&data);
+    });
+
+    let data_c = Rc::downgrade(data);
+    let cat_c = cat.to_string();
+    combo.connect_changed(move |combo| {
+        let Some(data) = data_c.upgrade() else { return };
+        if let Some(name) = combo.active_text() {
+            let mut d = data.borrow_mut();
+            let variant = d.config.pack.selected_variant(&cat_c);
+            let def = d.config.pack.variant_override(&cat_c, &variant);
+            let ov = d.config.pack.category_overrides
+                .entry(cat_c.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
+            while ov.accessories.len() <= idx {
+                ov.accessories.push(AccessoryConfig::default());
+            }
+            ov.accessories[idx].name = name.to_string();
+        }
+        rebuild_preview(&data);
+    });
+
+    let data_r = Rc::downgrade(data);
+    let cat_r = cat.to_string();
+    let names_r = acc_names.to_vec();
+    let container_r = container.clone();
+    rm.connect_clicked(move |_| {
+        let Some(data) = data_r.upgrade() else { return };
+        {
+            let mut d = data.borrow_mut();
+            let variant = d.config.pack.selected_variant(&cat_r);
+            let def = d.config.pack.variant_override(&cat_r, &variant);
+            let ov = d.config.pack.category_overrides
+                .entry(cat_r.clone()).or_default()
+                .entry(variant).or_insert_with(|| category_override_defaults(&def));
+            if idx < ov.accessories.len() {
+                ov.accessories.remove(idx);
+            }
+        }
+        rebuild_acc_modules(&container_r, &data, &cat_r, &names_r);
+        rebuild_preview(&data);
+    });
+
+    row
+}
+
+fn rebuild_acc_modules(
+    container: &gtk::Box,
+    data: &Rc<RefCell<AppData>>,
+    cat: &str,
+    acc_names: &[String],
+) {
+    for child in container.children() {
+        container.remove(&child);
+    }
+    let acc_list: Vec<miconium_core::config::AccessoryConfig> = {
+        let d = data.borrow();
+        let variant = d.config.pack.selected_variant(cat);
+        d.config.pack.variant_override(cat, &variant).accessories.clone()
+    };
+    for (idx, ac) in acc_list.iter().enumerate() {
+        let r = build_acc_module_row(container, data, cat, acc_names, idx, ac);
+        container.pack_start(&r, false, false, 0);
+    }
+    container.show_all();
+}
+
+fn update_pack_label(data: &Rc<RefCell<AppData>>) {
+    let Some(label) = data.borrow().pack_label.clone() else { return };
+    let name = data.borrow().config.pack.path.as_deref()
+        .and_then(|p| std::path::Path::new(p).file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("none")
+        .to_string();
+    label.set_text(&name);
 }
 
 fn choose_pack(
@@ -686,6 +957,7 @@ fn choose_pack(
                         header.set_subtitle(Some(&format!("Pack: {}", &path_str)));
                         rebuild_dynamic_sections(&data);
                         rebuild_right(&data, &paned);
+                        update_pack_label(&data);
                         show_first_preview(&data);
                     }
                     Err(e) => {
@@ -810,6 +1082,87 @@ fn hex_to_rgba(hex: &str) -> Option<gdk::RGBA> {
     ))
 }
 
+fn apply_color_source(
+    data: &Rc<RefCell<AppData>>,
+    window: &gtk::Window,
+    key: &str,
+    path: &str,
+) {
+    let path = path.trim().to_string();
+    if path.is_empty() {
+        return;
+    }
+    let resolved = {
+        let mut d = data.borrow_mut();
+        let c = &mut d.config.colors;
+        c.scheme = None;
+        c.matugen = None;
+        c.manual = None;
+        match key {
+            "scheme" => c.scheme = Some(path),
+            "matugen" => c.matugen = Some(path),
+            "manual" => c.manual = Some(path),
+            _ => {}
+        }
+        color::resolve_palette(c)
+    };
+    match resolved {
+        Ok(p) => {
+            let mut d = data.borrow_mut();
+            d.base_palette = p.clone();
+            d.palette = p.with_layer_map(&d.config.colors.map);
+        }
+        Err(e) => {
+            notify_or_dialog(window, &format!("Не удалось загрузить источник цветов: {e}"));
+        }
+    }
+    let cfg = data.borrow().config.clone();
+    if let Err(e) = config::save(&cfg) {
+        notify_or_dialog(window, &format!("Не удалось сохранить конфиг: {e}"));
+    }
+    rebuild_preview(data);
+}
+
+/// Rebuild the fg/bg/ac `Entry` texts from the current palette.
+/// The `data` borrow is dropped before any `set_text`, so the entry's `changed`
+/// signal (which re-borrows `data`) cannot run while the borrow is held.
+fn sync_slot_entries(entries: &[gtk::Entry], data: &Rc<RefCell<AppData>>) {
+    let texts = {
+        let d = data.borrow();
+        vec![
+            d.palette.foreground.clone(),
+            d.palette.background.clone(),
+            d.palette.accent.clone(),
+        ]
+    };
+    for (entry, text) in entries.iter().zip(texts.iter()) {
+        entry.set_text(text);
+    }
+}
+
+/// Rebuild the Frame/Sign/Acc role `ComboBox` children from the palette's roles
+/// and restore the selection from `config.colors.map`.
+fn populate_role_combos(combos: &[gtk::ComboBoxText], data: &Rc<RefCell<AppData>>) {
+    let (names, map) = {
+        let d = data.borrow();
+        (d.base_palette.role_names(), d.config.colors.map.clone())
+    };
+    let targets = [map.frame, map.sign, map.accessory];
+    for (combo, target) in combos.iter().zip(targets.iter()) {
+        combo.remove_all();
+        for n in &names {
+            combo.append_text(n);
+        }
+        if let Some(idx) = names.iter().position(|n| n == target) {
+            if let Ok(idx) = u32::try_from(idx) {
+                combo.set_active(Some(idx));
+            }
+        } else if !names.is_empty() {
+            combo.set_active(Some(0));
+        }
+    }
+}
+
 #[allow(clippy::too_many_lines)]
 fn build_color_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
     let color_frame = gtk::Frame::new(Some("Colors"));
@@ -822,6 +1175,33 @@ fn build_color_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
     }
     source_combo.set_active(Some(0));
     color_box.pack_start(&source_combo, false, false, 0);
+
+    // --- per-source path rows (xdg/matugen/manual) ---
+    let sources = [
+        ("scheme", "Xdg/Scheme"),
+        ("matugen", "Matugen"),
+        ("manual", "Manual"),
+    ];
+    let mut source_entries: Vec<gtk::Entry> = Vec::new();
+    let mut source_buttons: Vec<gtk::Button> = Vec::new();
+
+    for (_key, label) in &sources {
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        let lbl = gtk::Label::new(Some(label));
+        lbl.set_width_chars(10);
+        row.pack_start(&lbl, false, false, 0);
+        let entry = gtk::Entry::new();
+        entry.set_width_chars(14);
+        entry.set_hexpand(true);
+        entry.set_sensitive(false);
+        row.pack_start(&entry, true, true, 0);
+        let btn = gtk::Button::with_label("Browse…");
+        btn.set_sensitive(false);
+        row.pack_start(&btn, false, false, 0);
+        color_box.pack_start(&row, false, false, 0);
+        source_entries.push(entry);
+        source_buttons.push(btn);
+    }
 
     let color_slots = [
         ("fg", "foreground"),
@@ -868,15 +1248,27 @@ fn build_color_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
     let data_weak = Rc::downgrade(data);
     let entries_cb = entries.clone();
     let buttons_cb = buttons.clone();
+    let src_entries = source_entries.clone();
+    let src_buttons = source_buttons.clone();
     source_combo.connect_changed(move |combo| {
         let Some(data) = data_weak.upgrade() else { return };
-        let is_manual = combo.active_text().as_deref() == Some("manual");
+        let active = combo.active_text().map(String::from).unwrap_or_default();
+        let is_manual = active == "manual";
         for (entry, btn) in entries_cb.iter().zip(buttons_cb.iter()) {
             entry.set_sensitive(is_manual);
             btn.set_sensitive(is_manual);
         }
-        data.borrow_mut().color_source = combo.active_text().unwrap_or_default().to_string();
-        rebuild_preview(&data);
+        let active_idx = match active.as_str() {
+            "xdg" => Some(0),
+            "matugen" => Some(1),
+            "manual" => Some(2),
+            _ => None,
+        };
+        for (i, (entry, btn)) in src_entries.iter().zip(src_buttons.iter()).enumerate() {
+            entry.set_sensitive(active_idx == Some(i));
+            btn.set_sensitive(active_idx == Some(i));
+        }
+data.borrow_mut().color_source = active;
     });
 
     for (i, entry) in entries.iter().enumerate() {
@@ -928,6 +1320,161 @@ fn build_color_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
         if let Some(rgba) = hex_to_rgba(&entry.text()) {
             btn.set_rgba(&rgba);
         }
+    }
+
+    // Layer color mapping: which palette role each icon layer receives.
+    let role_labels = [
+        ("Frame", "frame"),
+        ("Sign", "sign"),
+        ("Acc", "accessory"),
+    ];
+    let map_sep = gtk::Separator::new(gtk::Orientation::Horizontal);
+    color_box.pack_start(&map_sep, false, false, 4);
+
+    let role_combos: Vec<gtk::ComboBoxText> = role_labels
+        .iter()
+        .map(|(label_text, _key)| {
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+            let lbl = gtk::Label::new(Some(&format!("{label_text} ->")));
+            lbl.set_width_chars(7);
+            row.pack_start(&lbl, false, false, 0);
+
+            let combo = gtk::ComboBoxText::new();
+            combo.set_hexpand(true);
+            row.pack_start(&combo, true, true, 0);
+            color_box.pack_start(&row, false, false, 0);
+            combo
+        })
+        .collect();
+
+    populate_role_combos(&role_combos, data);
+
+    for (i, combo) in role_combos.iter().enumerate() {
+        let data_rc = Rc::downgrade(data);
+        let key = role_labels[i].1.to_string();
+        combo.connect_changed(move |combo| {
+            let Some(data) = data_rc.upgrade() else { return };
+            let Some(role) = combo.active_text() else { return };
+            let role = role.to_string();
+            {
+                let mut d = data.borrow_mut();
+                match key.as_str() {
+                    "frame" => d.config.colors.map.frame = role,
+                    "sign" => d.config.colors.map.sign = role,
+                    "accessory" => d.config.colors.map.accessory = role,
+                    _ => {}
+                }
+                d.palette = d
+                    .base_palette
+                    .clone()
+                    .with_layer_map(&d.config.colors.map);
+            }
+            rebuild_preview(&data);
+        });
+    }
+
+    // Wire per-source: browse button (open file chooser) and Enter on the entry.
+    for (i, (key, _label)) in sources.iter().enumerate() {
+        let entry = source_entries[i].clone();
+        let btn = source_buttons[i].clone();
+        let key_c = key.to_string();
+        let key_c2 = key_c.clone();
+        let data_b = Rc::downgrade(data);
+        let data_bf = Rc::downgrade(data);
+        let entry_b = entry.clone();
+        let entries_c = entries.clone();
+        let entries_click = entries_c.clone();
+        let role_combos_c = role_combos.clone();
+        let role_combos_click = role_combos_c.clone();
+
+        entry.connect_activate(move |entry| {
+            let Some(data) = data_b.upgrade() else { return };
+            let path = entry.text();
+            if let Some(toplevel) = entry.toplevel().and_then(|w| w.downcast::<gtk::Window>().ok()) {
+                apply_color_source(&data, &toplevel, &key_c, &path);
+                sync_slot_entries(&entries_c, &data);
+                populate_role_combos(&role_combos_c, &data);
+            }
+        });
+
+        btn.connect_clicked(move |btn| {
+            let Some(data) = data_bf.upgrade() else { return };
+            if let Some(toplevel) = btn.toplevel().and_then(|w| w.downcast::<gtk::Window>().ok()) {
+                let filter = gtk::FileFilter::new();
+                filter.set_name(Some(match key_c2.as_str() {
+                    "scheme" => "Color schemes (*.colors)",
+                    "matugen" => "Matugen JSON (*.json)",
+                    _ => "TOML (*.toml)",
+                }));
+                filter.add_pattern(match key_c2.as_str() {
+                    "scheme" => "*.colors",
+                    "matugen" => "*.json",
+                    _ => "*.toml",
+                });
+                let all_filter = gtk::FileFilter::new();
+                all_filter.set_name(Some("All files (*)"));
+                all_filter.add_pattern("*");
+                let dialog = gtk::FileChooserDialog::new(
+                    Some("Выберите файл цвета"),
+                    Some(&toplevel),
+                    gtk::FileChooserAction::Open,
+                );
+                dialog.add_buttons(&[
+                    ("Open", gtk::ResponseType::Accept),
+                    ("Cancel", gtk::ResponseType::Cancel),
+                ]);
+                dialog.set_modal(true);
+                dialog.add_filter(all_filter);
+                dialog.add_filter(filter);
+                if dialog.run() == gtk::ResponseType::Accept {
+                    if let Some(path) = dialog.filename() {
+                        let path = path.to_string_lossy().to_string();
+                        entry_b.set_text(&path);
+                        apply_color_source(&data, &toplevel, &key_c2, &path);
+                        sync_slot_entries(&entries_click, &data);
+                        populate_role_combos(&role_combos_click, &data);
+                    }
+                }
+                dialog.close();
+            }
+        });
+    }
+
+    // Initial source rows: fill configured paths, or probe common locations.
+    // Values are collected under the borrow, then the borrow is dropped before
+    // any widget mutation that can emit signals synchronously.
+    let (active_idx, paths) = {
+        let d = data.borrow();
+        let configured = [
+            ("scheme", d.config.colors.scheme.clone()),
+            ("matugen", d.config.colors.matugen.clone()),
+            ("manual", d.config.colors.manual.clone()),
+        ];
+        let active_idx = configured
+            .iter()
+            .position(|(_, p)| p.is_some())
+            .map_or(0, |i| i + 1);
+        let paths: Vec<String> = configured
+            .iter()
+            .map(|(key, cfg)| {
+                let kind = match *key {
+                    "scheme" => miconium_core::color::ColorSourceKind::Xdg,
+                    "matugen" => miconium_core::color::ColorSourceKind::Matugen,
+                    _ => miconium_core::color::ColorSourceKind::Manual,
+                };
+                cfg.clone().unwrap_or_else(|| {
+                    color::probe_source_path(kind)
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_default()
+                })
+            })
+            .collect();
+        (active_idx, paths)
+    };
+    #[allow(clippy::cast_possible_truncation)]
+    source_combo.set_active(Some(active_idx as u32));
+    for (entry, path) in source_entries.iter().zip(paths.iter()) {
+        entry.set_text(path);
     }
 
     color_frame.add(&color_box);
@@ -1077,17 +1624,23 @@ fn preview_icon(data: &Rc<RefCell<AppData>>, icon_name: &str) {
             }, false)
         };
 
-        let accessories = if use_accessories {
-            if ov.selected_accessories.is_empty() {
-                pack.accessories.iter().take(1).cloned().collect()
-            } else {
-                pack.accessories.iter().filter(|a| ov.selected_accessories.contains(&a.name)).cloned().collect()
-            }
+        let accessories: Vec<miconium_core::pack::LayerData> = if use_accessories {
+            ov.accessories.iter()
+                .filter_map(|ac| pack.accessories.iter().find(|a| a.name == ac.name).cloned())
+                .collect()
         } else {
             Vec::new()
         };
 
-        match svg_engine::assemble_icon(&frame_data, &sign, &accessories, &d.palette, use_frame, use_accessories, frame_is_static, ov.frame_scale, ov.icon_scale, ov.acc_scale) {
+        let accessory_transforms: Vec<Option<miconium_core::svg_engine::LayerTransform>> = if use_accessories {
+            ov.accessories.iter()
+                .map(|ac| if ac.has_offset() { Some(ac.layer_transform()) } else { None })
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        match svg_engine::assemble_icon(&frame_data, &sign, &accessories, &accessory_transforms, &d.palette, use_frame, use_accessories, frame_is_static, ov.frame_scale, ov.icon_scale, ov.acc_scale) {
             Ok(icon) => icon.svg,
             Err(e) => {
                 eprintln!("Preview: assemble_icon failed for '{icon_name}': {e}");
@@ -1149,8 +1702,41 @@ fn render_svg_to_pixbuf(svg: &str, target_w: i32, target_h: i32) -> Option<gdk_p
     ))
 }
 
-#[allow(clippy::cast_precision_loss)]
-fn start_export(data: &Rc<RefCell<AppData>>, window: &gtk::Window) {
+fn choose_export_dir(data: &Rc<RefCell<AppData>>, window: &gtk::Window) {
+    let chooser = gtk::FileChooserDialog::new(
+        Some("Export to folder"),
+        Some(window),
+        gtk::FileChooserAction::SelectFolder,
+    );
+    chooser.add_button("_Export", gtk::ResponseType::Accept);
+    chooser.add_button("_Cancel", gtk::ResponseType::Cancel);
+
+    let data_clone = Rc::downgrade(data);
+    let window_clone = window.clone();
+    chooser.connect_response(move |chooser, response| {
+        if response != gtk::ResponseType::Accept {
+            chooser.close();
+            return;
+        }
+        let Some(path) = chooser.filename() else {
+            chooser.close();
+            return;
+        };
+        chooser.close();
+        if let Some(data) = data_clone.upgrade() {
+            run_export_dialog(&data, &window_clone, Some(path.to_string_lossy().to_string()), false);
+        }
+    });
+    chooser.show_all();
+}
+
+#[allow(clippy::cast_precision_loss, clippy::too_many_lines)]
+fn run_export_dialog(
+    data: &Rc<RefCell<AppData>>,
+    window: &gtk::Window,
+    output_override: Option<String>,
+    refresh_cache: bool,
+) {
     let (pack, palette, mut export_cfg, category_overrides) = {
         let d = data.borrow();
         let Some(pack) = &d.pack else {
@@ -1161,6 +1747,9 @@ fn start_export(data: &Rc<RefCell<AppData>>, window: &gtk::Window) {
         let pack = pack.clone();
         (pack, d.palette.clone(), d.config.export.clone(), d.config.pack.category_overrides.clone())
     };
+    if let Some(path) = output_override {
+        export_cfg.output = Some(path);
+    }
     // Copy live scale sliders into export config
     {
         let d = data.borrow();
@@ -1193,8 +1782,35 @@ fn start_export(data: &Rc<RefCell<AppData>>, window: &gtk::Window) {
         glib::MainContext::channel::<f64>(glib::Priority::DEFAULT);
     let (error_tx, error_rx) =
         glib::MainContext::channel::<String>(glib::Priority::DEFAULT);
+    let (done_tx, done_rx) =
+        glib::MainContext::channel::<(std::path::PathBuf, bool)>(glib::Priority::DEFAULT);
     error_rx.attach(None, move |msg| {
         show_error(&win_for_error, &msg);
+        glib::ControlFlow::Break
+    });
+    let win_for_done = window.clone();
+    done_rx.attach(None, move |(path, refresh)| {
+        if refresh {
+            match miconium_core::export::refresh_icon_cache(&path) {
+                Ok(()) => {
+                    notify_send("Theme applied and icon cache updated.");
+                }
+                Err(e) => {
+                    eprintln!("Icon cache update failed: {e}");
+                    notify_or_dialog(
+                        &win_for_done,
+                        &format!(
+                            "Theme exported to '{}', but the icon cache could not be updated.\n{e}\n\n\
+                             Icons may not refresh until the cache is rebuilt \
+                             (gtk-update-icon-cache is required).",
+                            path.display()
+                        ),
+                    );
+                }
+            }
+        } else {
+            notify_send("Export finished.");
+        }
         glib::ControlFlow::Break
     });
     fraction_rx.attach(None, move |fraction| {
@@ -1237,7 +1853,10 @@ fn start_export(data: &Rc<RefCell<AppData>>, window: &gtk::Window) {
         }
 
         match result {
-            Ok(()) => { let _ = fraction_tx.send(1.0); }
+            Ok(path) => {
+                let _ = fraction_tx.send(1.0);
+                let _ = done_tx.send((path, refresh_cache));
+            }
             Err(e) => {
                 eprintln!("Export error: {e}");
                 let _ = error_tx.send(format!("Export failed:\n{e}"));
@@ -1245,6 +1864,25 @@ fn start_export(data: &Rc<RefCell<AppData>>, window: &gtk::Window) {
             }
         }
     });
+}
+
+fn notify_send(summary: &str) {
+    let _ = std::process::Command::new("notify-send")
+        .args(["-a", "Miconium", "-u", "low"])
+        .arg(summary)
+        .status();
+}
+
+fn notify_or_dialog(window: &gtk::Window, msg: &str) {
+    let ok = std::process::Command::new("notify-send")
+        .args(["-a", "Miconium", "-u", "normal"])
+        .arg(msg)
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+    if !ok {
+        show_error(window, msg);
+    }
 }
 
 fn show_error(window: &gtk::Window, msg: &str) {

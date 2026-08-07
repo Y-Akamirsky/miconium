@@ -128,3 +128,20 @@ fn invalid_toml_returns_parse_error() {
     let err: Result<Config, _> = toml::from_str("[[[invalid]]]");
     assert!(err.is_err());
 }
+
+#[test]
+fn save_roundtrips_config() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("config.toml");
+
+    let mut config = Config::default();
+    config.colors.matugen = Some("/tmp/matugen.json".into());
+    config.colors.map.frame = "primary".into();
+
+    let toml = toml::to_string_pretty(&config).unwrap();
+    std::fs::write(&path, toml).unwrap();
+
+    let back: Config = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(back.colors.matugen.as_deref(), Some("/tmp/matugen.json"));
+    assert_eq!(back.colors.map.frame, "primary");
+}
