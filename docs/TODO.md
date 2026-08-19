@@ -1,5 +1,7 @@
 # TODO list (future features)
 
 [] Daemon for dynamic color change with .colorscheme|matugen
-[] Dummy-icons. Parsing and generation for hardcoded icons in .desktop files or missing sign in micon-pack
-[] Shop of users micon-packs
+[] Dummy-icons. Parsing and generation for hardcoded icons in .desktop files or missing sign in micon-pack*
+[] Shop for users custom micon-packs
+
+* - Raw icon pack for Miconium. As standart "yamis" pack

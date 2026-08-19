@@ -6,7 +6,7 @@
    viewBox="0 0 16.933 16.933"
    id="svg7"
    sodipodi:docname="materialgram.svg"
-   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -23,9 +23,9 @@
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="3.0781251"
-     inkscape:cx="81.380708"
-     inkscape:cy="63.999998"
+     inkscape:zoom="8.7062525"
+     inkscape:cx="31.701355"
+     inkscape:cy="28.370415"
      inkscape:window-width="2560"
      inkscape:window-height="1388"
      inkscape:window-x="0"
@@ -53,6 +53,6 @@
   <path
      id="path5"
      style="fill:currentColor;stroke-width:0.182112;paint-order:fill markers stroke"
-     d="M 8.4665,1.4551797 2.456797,15.47782 h 12.019406 z m 0,3.0959077 4.006468,9.6519476 H 9.559173 L 8.4665,9.8323417 7.373827,14.203035 H 4.460031 Z"
+     d="M 8.4665,0.6650543 2.456797,14.687695 h 12.019406 z m 0,3.0959077 4.006468,9.651948 H 9.559173 L 8.4665,9.0422163 7.373827,13.41291 H 4.460031 Z"
      class="ColorScheme-Text" />
 </svg>

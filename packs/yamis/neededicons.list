@@ -1,68 +1,74 @@
+// Comments are checkboxes. Commented names is already added icons //
 
 [apps]
 - scalable
-	org.gnome.Icons
-	org.gnome.Quadrapassel
-	org.gnome.Nibbles
-	org.gnome.LightsOff
-	moonlight
-	dev.lizardbyte.app.Sunshine
-	org.gnome.SwellFoop
+//	ModemManager
+//	QDiskInfo
+//	com.geeks3d.furmark
+//	com.github.tchx84.Flatseal.Flatpak
+//	danklogo
+//	dev.lizardbyte.app.Sunshine
 	gpsd
-	xgps
-	danklogo
-	org.gnome.Calls
-	org.gnome.Chess
+//	input-remapper
+//	io.github.antimicrox.antimicrox
+//	io.github.cosmic_utils.camera
+//	io.github.flightlessmango.mangohud
+	moonlight
+//	org.beeref.BeeRef
+	org.freedesktop.Passim
+	org.freedesktop.fwupd
+//	org.gnome.Builder
+//	org.gnome.Calls
+//	org.gnome.Chess
+//	org.gnome.GHex
+	org.gnome.Icons
+	org.gnome.LightsOff
+	org.gnome.Mahjongg
+	org.gnome.Nibbles
+	org.gnome.Quadrapassel
 	org.gnome.Robots
+	org.gnome.Sudoku
+	org.gnome.SwellFoop
 	org.gnome.Todo
 	org.gnome.dspy
-	io.github.cosmic_utils.camera
-	sm.puri.Chatty
-	org.gnome.Sudoku
-	org.gnome.GHex
-	org.gnome.Builder
-	org.gnome.Mahjongg
-	org.beeref.BeeRef
-	io.github.antimicrox.antimicrox
-	io.github.flightlessmango.mangohud
-	input-remapper
-	com.github.tchx84.Flatseal.Flatpak
-	com.geeks3d.furmark
-	virt-viewer
-	reviewboard-purpose6
-	r2modman
-	QDiskInfo
 	phabricator-purpose6
-	org.freedesktop.fwupd
-	org.freedesktop.Passim
-	ModemManager
+	r2modman
+	reviewboard-purpose6
+	sm.puri.Chatty
+	virt-viewer
+	xgps
+
 - symbolic
-	org.gnome.Quadrapassel-symbolic
-	org.pulseaudio.pavucontrol-symbolic
 	com.github.AppManager-symbolic
 	io.github.antimicrox.antimicrox.trayicon
-	shelly-tray
-	shelly-update
-	shelly-shell-symbolic
-	shelly-updates-symbolic
 	kdeconnectindicator
 	kdeconnectindicatordark
+	org.gnome.Quadrapassel-symbolic
+	org.pulseaudio.pavucontrol-symbolic
+	shelly-shell-symbolic
+	shelly-tray
+	shelly-update
+	shelly-updates-symbolic
 	
 - steam_icon_
-	4704690 - mecca chameleon
+//	220 - hl2
+	4000 - gmod
+	72850 - tesv-skyrim
+	223710 - cry of fear
+	382560 - hot lava
 	548430 - deep rock galactic
 	774171 - muse dash
-	72850 - tesv-skyrim
-	4000 - gmod
-	382560 - hot lava
 	3241660 - repo
 	3527290 - peak
-	223710 - cry of fear
-	220 - hl2
+	4704690 - mecca chameleon
+	570 - dota2
+	823130 - tabg
+	4068140 - gvalt
+
 
 [status]
 - scalable
-	dev.lizardbyte.app.Sunshine-tray
-	dev.lizardbyte.app.Sunshine-playing
-	dev.lizardbyte.app.Sunshine-pausing
-	dev.lizardbyte.app.Sunshine-locked
+//	dev.lizardbyte.app.Sunshine-tray
+//	dev.lizardbyte.app.Sunshine-playing
+//	dev.lizardbyte.app.Sunshine-pausing
+//	dev.lizardbyte.app.Sunshine-locked

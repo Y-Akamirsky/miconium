@@ -7,11 +7,11 @@
    id="svg6"
    sodipodi:docname="outline-circle.svg"
    inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xml:space="preserve"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <sodipodi:namedview
+   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
      id="namedview6"
      pagecolor="#ffffff"
      bordercolor="#000000"
@@ -20,65 +20,66 @@
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="4.7950679"
-     inkscape:cx="-16.162441"
-     inkscape:cy="59.436072"
+     inkscape:zoom="6.7812501"
+     inkscape:cx="1.7695852"
+     inkscape:cy="47.778801"
      inkscape:window-width="1920"
      inkscape:window-height="1048"
      inkscape:window-x="0"
      inkscape:window-y="32"
      inkscape:window-maximized="1"
-     inkscape:current-layer="svg6" />
-  <defs
-     id="defs2">
-    <linearGradient
+     inkscape:current-layer="svg6" /><defs
+     id="defs2"><linearGradient
        id="a-0"
        x1="2.5418189"
        x2="12.742182"
        y1="3.1766074"
        y2="13.739392"
-       gradientUnits="userSpaceOnUse">
-      <stop
+       gradientUnits="userSpaceOnUse"><stop
          stop-color="#474747"
          offset="0"
          id="stop1"
-         style="stop-color:#2a2a2a;stop-opacity:1;" />
-      <stop
+         style="stop-color:#2a2a2a;stop-opacity:1;" /><stop
          stop-color="#333"
          offset="1"
          id="stop2"
-         style="stop-color:#000000;stop-opacity:1;" />
-    </linearGradient>
-  </defs>
-  <defs
-     id="defs6">
-    <linearGradient
+         style="stop-color:#000000;stop-opacity:1;" /></linearGradient><linearGradient
+       id="linearGradient1"
+       x1="0%"
+       y1="0%"
+       x2="100%"
+       y2="100%"><stop
+         offset="0%"
+         stop-color="#ffffff"
+         stop-opacity="0.5"
+         id="stop4-6" /><stop
+         offset="50%"
+         stop-color="#ffffff"
+         stop-opacity="0"
+         id="stop5-1" /><stop
+         offset="100%"
+         stop-color="#ffffff"
+         stop-opacity="0.5"
+         id="stop6-2" /></linearGradient></defs><defs
+     id="defs6"><linearGradient
        id="shine-grad-final-v3"
        x1="0%"
        y1="0%"
        x2="100%"
-       y2="100%">
-      <stop
+       y2="100%"><stop
          offset="0%"
          stop-color="#ffffff"
          stop-opacity="0.5"
-         id="stop4" />
-      <stop
+         id="stop4" /><stop
          offset="50%"
          stop-color="#ffffff"
          stop-opacity="0"
-         id="stop5" />
-      <stop
+         id="stop5" /><stop
          offset="100%"
          stop-color="#ffffff"
          stop-opacity="0.5"
-         id="stop6" />
-    </linearGradient>
-  </defs>
-  <circle
-     style="opacity:1;fill:none;stroke:#ffffff;stroke-width:0.462342;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;paint-order:markers stroke fill;stroke-opacity:1"
+         id="stop6" /></linearGradient></defs><path
+     style="baseline-shift:baseline;display:inline;overflow:visible;opacity:1;vector-effect:none;fill:#ffffff;stroke-width:1.06081;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill;enable-background:accumulate;stop-color:#000000;stop-opacity:1;fill-opacity:1"
+     d="m 8.4665001,0.60750895 c -4.33716,0 -7.858398,3.52150385 -7.858398,7.85899105 0,4.337487 3.521238,7.858991 7.858398,7.858991 4.3371599,0 7.8583979,-3.521504 7.8583979,-7.858991 0,-4.3374872 -3.521238,-7.85899105 -7.8583979,-7.85899105 z m 0,0.68419205 c 3.9653649,0 7.1742569,3.2091341 7.1742569,7.174799 0,3.965665 -3.208892,7.174798 -7.1742569,7.174798 -3.965366,0 -7.174258,-3.209133 -7.174258,-7.174798 0,-3.9656648 3.208892,-7.1747989 7.174258,-7.174799 z"
      id="circle1"
-     cx="8.4665003"
-     cy="8.4665003"
-     r="7.1770167" />
-</svg>
+     sodipodi:nodetypes="ssssssssss" /></svg>

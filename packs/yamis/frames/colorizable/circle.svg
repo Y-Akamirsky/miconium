@@ -5,11 +5,10 @@
    version="1.1"
    viewBox="0 0 16.933 16.933"
    id="svg6"
-   sodipodi:docname="frame-rnd.svg"
+   sodipodi:docname="circle.svg"
    inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <sodipodi:namedview
@@ -22,8 +21,8 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="6.7812501"
-     inkscape:cx="14.746544"
-     inkscape:cy="25.364055"
+     inkscape:cx="22.267281"
+     inkscape:cy="36.276497"
      inkscape:window-width="1920"
      inkscape:window-height="1048"
      inkscape:window-x="0"
@@ -32,18 +31,6 @@
      inkscape:current-layer="svg6" />
   <defs
      id="defs2">
-    <linearGradient
-       id="linearGradient1"
-       inkscape:collect="always">
-      <stop
-         style="stop-color:#2a2a2a;stop-opacity:1;"
-         offset="0"
-         id="stop7" />
-      <stop
-         style="stop-color:#000000;stop-opacity:1;"
-         offset="1"
-         id="stop3" />
-    </linearGradient>
     <linearGradient
        id="a-0"
        x1="2.5418189"
@@ -65,26 +52,16 @@
     <filter
        inkscape:collect="always"
        style="color-interpolation-filters:sRGB"
-       id="filter11"
-       x="-0.093090404"
-       y="-0.093090404"
-       width="1.1861808"
-       height="1.1861808">
+       id="filter2"
+       x="-0.03809193"
+       y="-0.03809193"
+       width="1.0761839"
+       height="1.0761839">
       <feGaussianBlur
          inkscape:collect="always"
-         stdDeviation="0.57469265"
-         id="feGaussianBlur11" />
+         stdDeviation="0.23516014"
+         id="feGaussianBlur2" />
     </filter>
-    <linearGradient
-       inkscape:collect="always"
-       xlink:href="#linearGradient1"
-       id="linearGradient11"
-       gradientUnits="userSpaceOnUse"
-       gradientTransform="matrix(1.0610312,0,0,1.0610312,-0.51672095,-0.51672095)"
-       x1="4.9754682"
-       y1="2.4198558"
-       x2="11.957532"
-       y2="14.513144" />
   </defs>
   <defs
      id="defs6">
@@ -112,16 +89,16 @@
     </linearGradient>
   </defs>
   <circle
-     style="opacity:0.79530201;fill:url(#linearGradient11);stroke:none;stroke-width:0.904262;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill;filter:url(#filter11)"
+     style="opacity:0.373556;fill-opacity:1;stroke:none;stroke-width:0.591438;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers;filter:url(#filter2)"
      id="circle11"
      cx="8.4665003"
      cy="8.4665003"
      r="7.4081879"
-     transform="matrix(0.96347631,0,0,0.94852295,0.30922776,0.8171821)" />
+     transform="matrix(1.072675,0,0,1.0320652,-0.61530306,0.22414684)" />
   <circle
-     style="display:inline;opacity:1;fill:#000000;stroke:none;stroke-width:0.904262;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill;fill-opacity:1"
+     style="display:inline;opacity:1;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.959252;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill"
      id="path1"
      cx="8.4665003"
      cy="8.4665003"
-     r="7.4081879" />
+     r="7.8586946" />
 </svg>
