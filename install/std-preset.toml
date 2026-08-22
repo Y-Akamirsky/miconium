@@ -1,0 +1,97 @@
+[pack]
+path = "packs/yamis"
+name = "yamis"
+
+[pack.category_overrides.categories.scalable]
+show_frame = true
+show_accessories = true
+selected_frame = "squircle"
+frame_source = "colorizable"
+frame_scale = 1.0
+icon_scale = 0.88
+acc_scale = 1.0
+
+[[pack.category_overrides.categories.scalable.accessories]]
+name = "outline-squircle"
+x = 0.0
+y = 0.0
+rotation = 0.0
+scale = 1.0
+rotation_center = "center"
+scale_center = "center"
+
+[pack.category_overrides.apps.scalable]
+show_frame = true
+show_accessories = true
+selected_frame = "squircle"
+frame_source = "colorizable"
+frame_scale = 1.0
+icon_scale = 0.78
+acc_scale = 1.0
+
+[[pack.category_overrides.apps.scalable.accessories]]
+name = "outline-squircle"
+x = 0.0
+y = 0.0
+rotation = 0.0
+scale = 1.0
+rotation_center = "center"
+scale_center = "center"
+
+[pack.category_overrides.preferences.scalable]
+show_frame = true
+show_accessories = true
+selected_frame = "squircle"
+frame_source = "colorizable"
+frame_scale = 1.0
+icon_scale = 0.88
+acc_scale = 1.0
+
+[[pack.category_overrides.preferences.scalable.accessories]]
+name = "outline-squircle"
+x = 0.0
+y = 0.0
+rotation = 0.0
+scale = 1.0
+rotation_center = "center"
+scale_center = "center"
+
+[pack.category_overrides.devices.scalable]
+show_frame = false
+show_accessories = false
+accessories = []
+frame_source = "colorizable"
+frame_scale = 1.0
+icon_scale = 1.0
+acc_scale = 1.0
+
+[pack.selected_variants]
+
+[colors]
+matugen = "/home/akamirsky/.cache/DankMaterialShell/dms-colors.json"
+
+[colors.map]
+frame = "background"
+sign = "accent"
+accessory = "secondary_container"
+
+[export]
+output = "~/.local/share/icons/Miconium"
+sizes = [
+    16,
+    24,
+    32,
+    48,
+    64,
+    96,
+    128,
+    256,
+    512,
+]
+frame_scale = 1.0
+icon_scale = 1.0
+acc_scale = 1.0
+
+[gui]
+window_width = 800
+window_height = 600

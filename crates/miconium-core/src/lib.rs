@@ -5,3 +5,4 @@ pub mod color;
 pub mod export;
 pub mod pack;
 pub mod svg_engine;
+pub mod daemon;

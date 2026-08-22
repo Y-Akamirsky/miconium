@@ -129,7 +129,7 @@ fn export_theme_contains_all_category_variants() {
     setup_test_pack(pack_dir.path());
 
     let pack = Pack::load(pack_dir.path()).unwrap();
-    let theme = super::generate_index_theme(&pack);
+    let theme = super::generate_index_theme(&pack, "Miconium");
 
     for cat in pack.categories() {
         for var in pack.get_category_variants(&cat) {

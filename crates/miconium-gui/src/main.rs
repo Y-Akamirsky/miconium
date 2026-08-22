@@ -30,6 +30,8 @@ struct AppData {
     categories_frame: Option<gtk::Frame>,
     active_category: Option<String>,
     preview_sign_name: Option<String>,
+    preset_combo: Option<gtk::ComboBoxText>,
+    current_preset: Option<String>,
 }
 
 impl AppData {
@@ -50,7 +52,17 @@ fn main() -> glib::ExitCode {
 }
 
 fn build_ui(app: &gtk::Application) {
-    let config = config::load_or_default().unwrap_or_default();
+    let loaded = config::load_or_default().unwrap_or_default();
+    let mut config = loaded.clone();
+    let default_preset_name = loaded.default_preset.clone();
+    // If a default preset is configured, start from it instead of the bare
+    // main config (item 12: "Можно выбрать пресет по умолчанию").
+    if let Some(def) = &default_preset_name {
+        if let Ok(preset) = config::load_preset(def) {
+            config = preset;
+        }
+    }
+
     let base_palette = color::resolve_palette(&config.colors).unwrap_or_default();
     let palette = base_palette.clone().with_layer_map(&config.colors.map);
 
@@ -70,6 +82,8 @@ fn build_ui(app: &gtk::Application) {
         categories_frame: None,
         active_category: None,
         preview_sign_name: None,
+        preset_combo: None,
+        current_preset: default_preset_name,
     }));
 
     let window = gtk::ApplicationWindow::new(app);
@@ -95,7 +109,8 @@ fn build_ui(app: &gtk::Application) {
 
     let sidebar = build_sidebar(&data, &header);
     data.borrow_mut().sidebar = Some(sidebar.clone());
-    paned.pack1(&sidebar, false, false);
+    let sidebar_scrolled = wrap_sidebar_scrolled(&sidebar);
+    paned.pack1(&sidebar_scrolled, false, false);
 
     let right_area = build_right_area(&data);
     paned.pack2(&right_area, true, false);
@@ -190,6 +205,8 @@ fn build_sidebar(data: &Rc<RefCell<AppData>>, header: &gtk::HeaderBar) -> gtk::B
     pack_frame.add(&pack_box);
     sidebar.pack_start(&pack_frame, false, false, 0);
 
+    build_preset_section(&sidebar, data);
+
     build_color_section(&sidebar, data);
     build_scale_section(&sidebar, data);
 
@@ -230,6 +247,19 @@ fn build_sidebar(data: &Rc<RefCell<AppData>>, header: &gtk::HeaderBar) -> gtk::B
     sidebar
 }
 
+/// Wrap the sidebar box in a vertical-only `ScrolledWindow` so the window can
+/// shrink below the full content height instead of overflowing small screens
+/// (e.g. 1080p). Horizontal scrolling is disabled; the menu scrolls
+/// vertically instead.
+fn wrap_sidebar_scrolled(sidebar: &gtk::Box) -> gtk::ScrolledWindow {
+    let scrolled = gtk::ScrolledWindow::new(None::<&gtk::Adjustment>, None::<&gtk::Adjustment>);
+    scrolled.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
+    scrolled.set_propagate_natural_height(false);
+    scrolled.set_min_content_height(420);
+    scrolled.add(sidebar);
+    scrolled
+}
+
 fn rebuild_dynamic_sections(data: &Rc<RefCell<AppData>>) {
     let (sidebar, old_scale) = {
         let mut d = data.borrow_mut();
@@ -242,6 +272,224 @@ fn rebuild_dynamic_sections(data: &Rc<RefCell<AppData>>) {
     if let Some(old) = old_scale { sidebar.remove(&old); }
     build_scale_section(sidebar, data);
     sidebar.show_all();
+}
+
+/// Build the "Presets" frame (item 12): a dropdown to switch presets plus
+/// controls to save, delete, and mark the default preset.
+fn build_preset_section(sidebar: &gtk::Box, data: &Rc<RefCell<AppData>>) {
+    let frame = gtk::Frame::new(Some("Presets"));
+    let box_ = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    box_.set_margin(8);
+
+    let combo = gtk::ComboBoxText::new();
+    for name in config::list_presets() {
+        combo.append_text(&name);
+    }
+    {
+        let d = data.borrow();
+        let active = d
+            .current_preset
+            .clone()
+            .or_else(config::default_preset);
+        if let Some(name) = active {
+            combo.set_active_id(Some(&name));
+        }
+    }
+    let data_weak = Rc::downgrade(data);
+    combo.connect_changed(move |cb| {
+        let Some(name) = cb.active_text() else { return };
+        let Some(data) = data_weak.upgrade() else { return };
+        // Avoid re-loading the preset we already have active (e.g. when the
+        // selection is set programmatically while refreshing the list).
+        if data.borrow().current_preset.as_deref() == Some(&name) {
+            return;
+        }
+        let toplevel: gtk::ApplicationWindow = match cb.toplevel().and_downcast() {
+            Some(w) => w,
+            None => return,
+        };
+        let idle_weak = data_weak.clone();
+        glib::idle_add_local(move || {
+            if let Some(data) = idle_weak.upgrade() {
+                let paned = toplevel.child().and_downcast::<gtk::Paned>();
+                let header = toplevel.titlebar().and_downcast::<gtk::HeaderBar>();
+                if let (Some(paned), Some(header)) = (paned, header) {
+                    apply_preset(&data, &name, &paned, &header, &toplevel);
+                }
+            }
+            glib::ControlFlow::Break
+        });
+    });
+    box_.pack_start(&combo, false, false, 0);
+    data.borrow_mut().preset_combo = Some(combo.clone());
+
+    let name_entry = gtk::Entry::new();
+    name_entry.set_placeholder_text(Some("preset name"));
+    box_.pack_start(&name_entry, false, false, 0);
+
+    let btn_row = build_preset_buttons(data, &name_entry);
+    box_.pack_start(&btn_row, false, false, 0);
+
+    let cleanup_btn = gtk::Button::with_label("Cleanup cache");
+    cleanup_btn.connect_clicked(move |btn| {
+        let icons_root = miconium_core::daemon::default_icons_root();
+        match miconium_core::daemon::cleanup_all_except_active(&icons_root) {
+            Ok(n) => {
+                let msg = if n == 0 {
+                    "No inactive icon themes to remove.".to_string()
+                } else {
+                    format!("Removed {n} inactive icon theme director(y/ies).")
+                };
+                if let Some(win) = btn.toplevel().and_downcast::<gtk::Window>() {
+                    notify_or_dialog(&win, &msg);
+                }
+            }
+            Err(e) => {
+                if let Some(win) = btn.toplevel().and_downcast::<gtk::Window>() {
+                    show_error(&win, &format!("Cache cleanup failed: {e}"));
+                }
+            }
+        }
+    });
+    box_.pack_start(&cleanup_btn, false, false, 0);
+
+    frame.add(&box_);
+    sidebar.pack_start(&frame, false, false, 0);
+}
+
+/// Build the "Save as" / "Delete" / "Set default" button row for the Presets
+/// frame. `name_entry` is the preset-name field owned by the parent section.
+fn build_preset_buttons(
+    data: &Rc<RefCell<AppData>>,
+    name_entry: &gtk::Entry,
+) -> gtk::Box {
+    let btn_row = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+
+    let save_btn = gtk::Button::with_label("Save as");
+    let data_weak = Rc::downgrade(data);
+    let entry_weak = name_entry.downgrade();
+    save_btn.connect_clicked(move |_| {
+        let (Some(data), Some(entry)) = (data_weak.upgrade(), entry_weak.upgrade()) else {
+            return;
+        };
+        let name = entry.text().to_string();
+        if name.trim().is_empty() {
+            return;
+        }
+        let cfg = data.borrow().config.clone();
+        match config::save_preset(&name, &cfg) {
+            Ok(()) => {
+                data.borrow_mut().current_preset = Some(name.clone());
+                refresh_preset_combo(&data);
+            }
+            Err(e) => {
+                if let Some(win) = entry.toplevel().and_downcast::<gtk::Window>() {
+                    show_error(&win, &format!("Failed to save preset: {e}"));
+                }
+            }
+        }
+    });
+    btn_row.pack_start(&save_btn, true, true, 0);
+
+    let delete_btn = gtk::Button::with_label("Delete");
+    let data_weak = Rc::downgrade(data);
+    delete_btn.connect_clicked(move |btn| {
+        let Some(data) = data_weak.upgrade() else { return };
+        let name = data.borrow().current_preset.clone();
+        let Some(name) = name else { return };
+        if let Err(e) = config::delete_preset(&name) {
+            if let Some(win) = btn.toplevel().and_downcast::<gtk::Window>() {
+                show_error(&win, &format!("Failed to delete preset: {e}"));
+            }
+            return;
+        }
+        data.borrow_mut().current_preset = None;
+        refresh_preset_combo(&data);
+    });
+    btn_row.pack_start(&delete_btn, true, true, 0);
+
+    let default_btn = gtk::Button::with_label("Set default");
+    let data_weak = Rc::downgrade(data);
+    default_btn.connect_clicked(move |btn| {
+        let Some(data) = data_weak.upgrade() else { return };
+        let name = data.borrow().current_preset.clone();
+        let Some(name) = name else { return };
+        if let Err(e) = config::set_default_preset(&name) {
+            if let Some(win) = btn.toplevel().and_downcast::<gtk::Window>() {
+                show_error(&win, &format!("Failed to set default preset: {e}"));
+            }
+            return;
+        }
+        if let Some(win) = btn.toplevel().and_downcast::<gtk::Window>() {
+            notify_or_dialog(&win, &format!("Default preset set to '{name}'."));
+        }
+    });
+    btn_row.pack_start(&default_btn, true, true, 0);
+
+    btn_row
+}
+
+/// Re-populate the preset dropdown from disk and re-select the active preset.
+fn refresh_preset_combo(data: &Rc<RefCell<AppData>>) {
+    let Some(combo) = data.borrow().preset_combo.clone() else {
+        return;
+    };
+    combo.remove_all();
+    for name in config::list_presets() {
+        combo.append_text(&name);
+    }
+    let active = data.borrow().current_preset.clone();
+    if let Some(name) = active {
+        combo.set_active_id(Some(&name));
+    }
+}
+
+/// Load a preset by `name`, swap it into `AppData`, and rebuild the UI.
+fn apply_preset(
+    data: &Rc<RefCell<AppData>>,
+    name: &str,
+    paned: &gtk::Paned,
+    header: &gtk::HeaderBar,
+    window: &gtk::ApplicationWindow,
+) {
+    let new_config = match config::load_preset(name) {
+        Ok(c) => c,
+        Err(e) => {
+            show_error(window.upcast_ref::<gtk::Window>(), &format!("Failed to load preset '{name}': {e}"));
+            return;
+        }
+    };
+
+    {
+        let mut d = data.borrow_mut();
+        d.config = new_config.clone();
+        d.current_preset = Some(name.to_string());
+        d.base_palette = color::resolve_palette(&new_config.colors).unwrap_or_default();
+        d.palette = d.base_palette.clone().with_layer_map(&new_config.colors.map);
+        match &new_config.pack.path {
+            Some(path) => {
+                if let Err(e) = d.load_pack(path) {
+                    show_error(window.upcast_ref::<gtk::Window>(), &format!("Failed to load pack: {e}"));
+                }
+            }
+            None => d.pack = None,
+        }
+    }
+
+    // Rebuild the whole sidebar so the color/scale sections reflect the new
+    // config, then rebuild the right area and refresh the pack label.
+    if let Some(old) = paned.child1() {
+        paned.remove(&old);
+    }
+    let new_sidebar = build_sidebar(data, header);
+    data.borrow_mut().sidebar = Some(new_sidebar.clone());
+    let new_sidebar_scrolled = wrap_sidebar_scrolled(&new_sidebar);
+    paned.pack1(&new_sidebar_scrolled, false, false);
+
+    rebuild_right(data, paned);
+    update_pack_label(data);
+    show_first_preview(data);
+    paned.show_all();
 }
 
 fn build_right_area(data: &Rc<RefCell<AppData>>) -> gtk::Box {

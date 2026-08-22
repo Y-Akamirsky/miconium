@@ -106,6 +106,31 @@ impl Palette {
         }
         self
     }
+
+    /// A stable, order-independent string representation of the palette, used
+    /// to derive a content hash when no colour-source file is available.
+    #[must_use]
+    pub fn hash_input(&self) -> String {
+        let mut roles: Vec<(&String, &String)> = self.roles.iter().collect();
+        roles.sort_by(|a, b| a.0.cmp(b.0));
+        let mut s = String::new();
+        s.push_str("foreground=");
+        s.push_str(&self.foreground);
+        s.push('\n');
+        s.push_str("background=");
+        s.push_str(&self.background);
+        s.push('\n');
+        s.push_str("accent=");
+        s.push_str(&self.accent);
+        s.push('\n');
+        for (k, v) in roles {
+            s.push_str(k);
+            s.push('=');
+            s.push_str(v);
+            s.push('\n');
+        }
+        s
+    }
 }
 
 pub enum ColorSource {

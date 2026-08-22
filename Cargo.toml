@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/miconium-core", "crates/miconium-gui"]
+members = ["crates/miconium-core", "crates/miconium-gui", "crates/miconium-daemon"]
 resolver = "2"
 
 [workspace.package]

@@ -116,7 +116,7 @@ fn generate_dir_section(category: &str, variant: &str) -> String {
     )
 }
 
-fn generate_index_theme(pack: &Pack) -> String {
+fn generate_index_theme(pack: &Pack, theme_name: &str) -> String {
     let mut dirs: Vec<String> = Vec::new();
     let mut sections: Vec<String> = Vec::new();
 
@@ -130,22 +130,23 @@ fn generate_index_theme(pack: &Pack) -> String {
 
     format!(
         "[Icon Theme]\n\
-         Name=Miconium\n\
+         Name={name}\n\
          Comment=SVG icon generator for Linux desktop.\n\
          Inherits=hicolor\n\
          FollowsColorScheme=true\n\
          \n\
-         Directories={}\n\
+         Directories={dirs}\n\
          \n\
-         {}",
-        dirs.join(","),
-        sections.join("\n"),
+         {sections}",
+        name = theme_name,
+        dirs = dirs.join(","),
+        sections = sections.join("\n"),
     )
 }
 
-fn write_meta_files(output: &Path, pack: &Pack, project_root: &Path) -> Result<(), ExportError> {
+fn write_meta_files(output: &Path, pack: &Pack, project_root: &Path, theme_name: &str) -> Result<(), ExportError> {
     std::fs::write(output.join("Authors"), AUTHORS_CONTENT)?;
-    std::fs::write(output.join("index.theme"), generate_index_theme(pack))?;
+    std::fs::write(output.join("index.theme"), generate_index_theme(pack, theme_name))?;
 
     let license_src = project_root.join("LICENSE");
     if license_src.is_file() {
@@ -241,7 +242,11 @@ fn run_export(
         }
     }
 
-    write_meta_files(output_path, pack, project_root)?;
+    let theme_name = output_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Miconium");
+    write_meta_files(output_path, pack, project_root, theme_name)?;
 
     Ok(())
 }
@@ -315,12 +320,27 @@ pub fn export_pack(
     progress_tx: &mpsc::Sender<ExportProgress>,
 ) -> Result<PathBuf, ExportError> {
     let output_path = resolve_output_path(export_cfg);
+    export_pack_to(&output_path, pack, palette, export_cfg, category_overrides, project_root, progress_tx)
+}
 
-    match run_export(&output_path, pack, palette, category_overrides, project_root, progress_tx) {
-        Ok(()) => Ok(output_path),
+/// Like [`export_pack`] but writes to an explicit `output` directory instead
+/// of deriving it from `export_cfg.output`. Used by the daemon, which targets
+/// a hash-named directory rather than the plain `Miconium` theme dir.
+#[allow(clippy::implicit_hasher)]
+pub fn export_pack_to(
+    output: &Path,
+    pack: &Pack,
+    palette: &Palette,
+    _export_cfg: &ExportConfig,
+    category_overrides: &HashMap<String, HashMap<String, CategoryOverride>>,
+    project_root: &Path,
+    progress_tx: &mpsc::Sender<ExportProgress>,
+) -> Result<PathBuf, ExportError> {
+    match run_export(output, pack, palette, category_overrides, project_root, progress_tx) {
+        Ok(()) => Ok(output.to_path_buf()),
         Err(ExportError::Io(_)) => {
             let fallback = PathBuf::from("/tmp/miconium-export");
-            eprintln!("Export: IO error on {}, retrying with {}", output_path.display(), fallback.display());
+            eprintln!("Export: IO error on {}, retrying with {}", output.display(), fallback.display());
             run_export(&fallback, pack, palette, category_overrides, project_root, progress_tx)?;
             Ok(fallback)
         }

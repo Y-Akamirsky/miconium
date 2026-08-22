@@ -1,0 +1,122 @@
+# =============================================================================
+# Miconium configuration — example / reference
+# =============================================================================
+# Copy this file to one of the locations Miconium searches for `miconium.toml`:
+#   * ./miconium.toml            (current working directory)
+#   * ~/.config/miconium/miconium.toml
+#   * /etc/miconium/miconium.toml
+# The first file found wins. All sections and keys are OPTIONAL; anything you
+# omit falls back to the documented default.
+#
+# This file documents every available parameter. Values shown are the defaults
+# unless noted otherwise.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Preset system (item 12)
+# -----------------------------------------------------------------------------
+# Name of the preset (a file under ~/.config/miconium/presets/<name>.toml) that
+# the GUI loads on startup and that the daemon generates by default.
+# Omit to use the settings written directly in this file (no preset file).
+
+default_preset = "std-preset.toml"
+
+# -----------------------------------------------------------------------------
+# Daemon behaviour (item 13) — all values are in seconds / hours
+# -----------------------------------------------------------------------------
+# Lifetime of generated icon themes (the `Miconium-<hash>` directories).
+#   * 0          → never auto-deleted by the daemon's TTL cleanup
+#   * any other  → themes older than this many hours are removed on the next
+#                  cleanup (the active theme is ALWAYS preserved)
+# Default: 72 (3 days).
+cache_ttl_hours = 72
+
+# How often (seconds) the daemon checks the colour-source file of the default
+# preset for changes. Only when the source/preset actually changes is the theme
+# regenerated and re-applied — polling alone never re-switches the icon theme.
+# Default: 15.
+source_poll_seconds = 15
+
+# How often (seconds) the daemon re-reads which preset is the default
+# (i.e. re-evaluates `default_preset`). Default: 900 (15 minutes).
+preset_poll_seconds = 900
+
+# -----------------------------------------------------------------------------
+# Pack — the raw SVG layer set the icons are assembled from
+# -----------------------------------------------------------------------------
+[pack]
+# Path to the raw pack directory (frames + signs + accessories). May be
+# relative to the Miconium project root or an absolute path; `~` is expanded.
+
+path = "~/.local/share/miconium/yamis"
+
+# Human-readable pack name (used in generated metadata / logs).
+
+name = "yamis"
+
+# Per-category, per-variant overrides. Usually edited through the GUI; left
+# empty for the defaults.
+[pack.category_overrides]
+
+# Which SVG variant is selected per category (e.g. "scalable"). Empty → "scalable".
+[pack.selected_variants]
+
+# -----------------------------------------------------------------------------
+# Colors — where the palette comes from and how it maps onto SVG layers
+# -----------------------------------------------------------------------------
+# Exactly one of the three sources below is used, in this precedence order:
+#   scheme  → a .colors scheme file
+#   matugen → a Matugen-generated colour JSON (e.g. DankMaterialShell's output)
+#   manual  → a manual colour file
+
+[colors]
+# scheme = "~/.config/miconium/colors/scheme.colors"
+# matugen = "~/.cache/matugen/matugen.json"
+# manual  = "~/.config/miconium/manual-colors.toml"
+
+# Override resolved palette roles directly (hex strings). Optional.
+[colors.overrides]
+# foreground = "#ffffff"
+# background = "#000000"
+# accent     = "#88c0d0"
+
+# Maps a palette role onto each SVG layer. The engine substitutes these colours
+# into the frame / sign / accessory layers of every icon.
+# Valid roles: background, foreground, accent, secondary_container, … (any role
+# your colour source provides). Changing this is what makes presets distinct.
+[colors.map]
+frame     = "background"   # injected into the background frame layer
+sign      = "foreground"   # injected into the sign (icon glyph) layer
+accessory = "accent"       # injected into the accessory/overlay layer
+
+# -----------------------------------------------------------------------------
+# Export — how themes are written to disk
+# -----------------------------------------------------------------------------
+[export]
+# Output directory for the generated theme. The daemon overrides this with its
+# own hash-named directory (~/.local/share/icons/Miconium-<hash>); for a manual
+# GUI/direct export you can point it anywhere (e.g. a real icon theme path).
+output = "~/.local/share/icons/Miconium"
+# Icon sizes to render (SVG is scaled per size; integers in px).
+sizes = [
+    16,
+    24,
+    32,
+    48,
+    64,
+    96,
+    128,
+    256,
+    512,
+]
+# Independent scale multipliers for each layer. 1.0 = unchanged.
+frame_scale = 1.0
+icon_scale  = 1.0
+acc_scale   = 1.0
+
+# -----------------------------------------------------------------------------
+# GUI — window geometry for float WM's
+# -----------------------------------------------------------------------------
+[gui]
+window_width  = 800
+window_height = 600

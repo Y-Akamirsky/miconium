@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -24,6 +24,53 @@ pub struct Config {
     pub export: ExportConfig,
     #[serde(default)]
     pub gui: GuiConfig,
+    /// Name of the preset (file under `~/.config/miconium/presets/`) that the
+    /// daemon should use by default, and that the GUI loads on startup.
+    #[serde(default)]
+    pub default_preset: Option<String>,
+    /// Lifetime (in hours) of generated icon themes produced by the daemon.
+    /// `None` falls back to the daemon default (72h); `0` disables auto-cleanup.
+    #[serde(default)]
+    pub cache_ttl_hours: Option<u64>,
+    /// How often (seconds) the daemon polls the colour-source file of the
+    /// default preset for changes. `None` falls back to
+    /// [`DEFAULT_SOURCE_POLL_SECS`].
+    #[serde(default)]
+    pub source_poll_seconds: Option<u64>,
+    /// How often (seconds) the daemon re-reads which preset is the default.
+    /// `None` falls back to [`DEFAULT_PRESET_POLL_SECS`].
+    #[serde(default)]
+    pub preset_poll_seconds: Option<u64>,
+}
+
+/// The daemon default when `cache_ttl_hours` is unset.
+pub const DEFAULT_CACHE_TTL_HOURS: u64 = 72;
+/// The daemon default when `source_poll_seconds` is unset.
+pub const DEFAULT_SOURCE_POLL_SECS: u64 = 15;
+/// The daemon default when `preset_poll_seconds` is unset.
+pub const DEFAULT_PRESET_POLL_SECS: u64 = 15 * 60;
+
+impl Config {
+    /// Resolve the effective cache TTL, falling back to
+    /// [`DEFAULT_CACHE_TTL_HOURS`].
+    #[must_use]
+    pub fn cache_ttl_hours(&self) -> u64 {
+        self.cache_ttl_hours.unwrap_or(DEFAULT_CACHE_TTL_HOURS)
+    }
+
+    /// Resolve the colour-source poll interval, falling back to
+    /// [`DEFAULT_SOURCE_POLL_SECS`].
+    #[must_use]
+    pub fn source_poll_seconds(&self) -> u64 {
+        self.source_poll_seconds.unwrap_or(DEFAULT_SOURCE_POLL_SECS)
+    }
+
+    /// Resolve the default-preset re-read interval, falling back to
+    /// [`DEFAULT_PRESET_POLL_SECS`].
+    #[must_use]
+    pub fn preset_poll_seconds(&self) -> u64 {
+        self.preset_poll_seconds.unwrap_or(DEFAULT_PRESET_POLL_SECS)
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -348,6 +395,126 @@ pub fn save(config: &Config) -> Result<(), ConfigError> {
     let toml = toml::to_string_pretty(config)?;
     std::fs::write(&path, toml)?;
     Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Preset system (item 12)
+//
+// A preset is just a named `Config`, stored as a standalone TOML file under
+// `~/.config/miconium/presets/<name>.toml`. The main `miconium.toml` only
+// records which preset is the default.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The directory holding preset files, derived from the user's home.
+#[must_use]
+pub fn presets_dir() -> PathBuf {
+    presets_dir_in(None)
+}
+
+fn presets_dir_in(home: Option<&Path>) -> PathBuf {
+    let base = home
+        .map(Path::to_path_buf)
+        .or_else(|| std::env::var("HOME").ok().map(PathBuf::from))
+        .unwrap_or_else(std::env::temp_dir);
+    base.join(".config/miconium/presets")
+}
+
+/// Replace filesystem-hostile characters so a preset name can never escape the
+/// presets directory (no slashes, no traversal).
+fn sanitize_name(name: &str) -> String {
+    let mut s: String = name
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if s.is_empty() {
+        s = "preset".into();
+    }
+    s
+}
+
+fn preset_path_in(dir: &Path, name: &str) -> PathBuf {
+    dir.join(format!("{}.toml", sanitize_name(name)))
+}
+
+/// List the names of all stored presets (sorted).
+#[must_use]
+pub fn list_presets() -> Vec<String> {
+    list_presets_in(&presets_dir())
+}
+
+pub(crate) fn list_presets_in(dir: &Path) -> Vec<String> {
+    let mut names = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return names;
+    };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_file() && p.extension().is_some_and(|e| e.eq_ignore_ascii_case("toml")) {
+            if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+                names.push(stem.to_string());
+            }
+        }
+    }
+    names.sort();
+    names
+}
+
+/// Persist `config` as a preset with the given `name`.
+pub fn save_preset(name: &str, config: &Config) -> Result<(), ConfigError> {
+    save_preset_in(&presets_dir(), name, config)
+}
+
+pub(crate) fn save_preset_in(dir: &Path, name: &str, config: &Config) -> Result<(), ConfigError> {
+    std::fs::create_dir_all(dir)?;
+    let path = preset_path_in(dir, name);
+    let toml = toml::to_string_pretty(config)?;
+    std::fs::write(&path, toml)?;
+    Ok(())
+}
+
+/// Load a previously saved preset by `name`.
+pub fn load_preset(name: &str) -> Result<Config, ConfigError> {
+    load_preset_in(&presets_dir(), name)
+}
+
+pub(crate) fn load_preset_in(dir: &Path, name: &str) -> Result<Config, ConfigError> {
+    let path = preset_path_in(dir, name);
+    if !path.is_file() {
+        return Err(ConfigError::NotFound);
+    }
+    load(&path.to_string_lossy())
+}
+
+/// Remove a preset by `name`. Removing a non-existent preset is a no-op.
+pub fn delete_preset(name: &str) -> Result<(), ConfigError> {
+    delete_preset_in(&presets_dir(), name)
+}
+
+pub(crate) fn delete_preset_in(dir: &Path, name: &str) -> Result<(), ConfigError> {
+    let path = preset_path_in(dir, name);
+    if path.is_file() {
+        std::fs::remove_file(&path)?;
+    }
+    Ok(())
+}
+
+/// The name of the default preset (read from the main `miconium.toml`).
+#[must_use]
+pub fn default_preset() -> Option<String> {
+    load_or_default().ok().and_then(|c| c.default_preset)
+}
+
+/// Record `name` as the default preset in the main `miconium.toml`.
+pub fn set_default_preset(name: &str) -> Result<(), ConfigError> {
+    let mut cfg = load_or_default().unwrap_or_default();
+    cfg.default_preset = Some(name.to_string());
+    save(&cfg)
 }
 
 #[cfg(test)]

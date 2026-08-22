@@ -1,3 +1,8 @@
+default_preset = "squircle-std"
+cache_ttl_hours = 24
+source_poll_seconds = 2
+preset_poll_seconds = 900
+
 [pack]
 path = "packs/yamis"
 name = "yamis"

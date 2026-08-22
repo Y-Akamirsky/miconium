@@ -1,0 +1,13 @@
+[Unit]
+Description=Miconium icon theme daemon
+Documentation=https://github.com/Y-Akamirsky/miconium
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/miconiumd run
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
