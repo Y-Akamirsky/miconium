@@ -85,7 +85,7 @@ pub struct PackConfig {
 }
 
 fn default_pack_name() -> String {
-    "mono".into()
+    "yamis".into()
 }
 
 impl Default for PackConfig {
@@ -419,6 +419,30 @@ fn presets_dir_in(home: Option<&Path>) -> PathBuf {
     base.join(".config/miconium/presets")
 }
 
+/// Directories searched (in priority order) for preset files.
+///
+/// 1. The user presets dir (`~/.config/miconium/presets`)
+/// 2. The packaged system location (`/usr/share/miconium/presets`)
+#[must_use]
+pub fn preset_search_dirs() -> Vec<PathBuf> {
+    vec![presets_dir(), PathBuf::from("/usr/share/miconium/presets")]
+}
+
+/// Resolve the on-disk path of a preset named `name`, searching the standard
+/// preset directories (user first, then system). Returns `None` when no
+/// matching `<name>.toml` exists.
+#[must_use]
+pub fn resolve_preset_path(name: &str) -> Option<PathBuf> {
+    let file = format!("{}.toml", sanitize_name(name));
+    for dir in preset_search_dirs() {
+        let candidate = dir.join(&file);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
 /// Replace filesystem-hostile characters so a preset name can never escape the
 /// presets directory (no slashes, no traversal).
 fn sanitize_name(name: &str) -> String {
@@ -442,10 +466,21 @@ fn preset_path_in(dir: &Path, name: &str) -> PathBuf {
     dir.join(format!("{}.toml", sanitize_name(name)))
 }
 
-/// List the names of all stored presets (sorted).
+/// List the names of all stored presets (sorted). Presets found in the user
+/// directory take precedence over identically-named system presets.
 #[must_use]
 pub fn list_presets() -> Vec<String> {
-    list_presets_in(&presets_dir())
+    let mut seen = std::collections::HashSet::new();
+    let mut names = Vec::new();
+    for dir in preset_search_dirs() {
+        for name in list_presets_in(&dir) {
+            if seen.insert(name.clone()) {
+                names.push(name);
+            }
+        }
+    }
+    names.sort();
+    names
 }
 
 pub(crate) fn list_presets_in(dir: &Path) -> Vec<String> {
@@ -478,11 +513,15 @@ pub(crate) fn save_preset_in(dir: &Path, name: &str, config: &Config) -> Result<
     Ok(())
 }
 
-/// Load a previously saved preset by `name`.
+/// Load a previously saved preset by `name`, searching the user directory
+/// first and falling back to the packaged system presets.
 pub fn load_preset(name: &str) -> Result<Config, ConfigError> {
-    load_preset_in(&presets_dir(), name)
+    let path = resolve_preset_path(name).ok_or(ConfigError::NotFound)?;
+    let path_str = path.to_string_lossy();
+    load(&path_str)
 }
 
+#[cfg(test)]
 pub(crate) fn load_preset_in(dir: &Path, name: &str) -> Result<Config, ConfigError> {
     let path = preset_path_in(dir, name);
     if !path.is_file() {

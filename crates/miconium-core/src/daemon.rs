@@ -57,18 +57,6 @@ fn now_secs() -> u64 {
 
 /// Expand a leading `~` to `$HOME`. Falls back to the raw path when `$HOME`
 /// is unset or the path does not start with `~`.
-fn expand_tilde(path: &str) -> PathBuf {
-    if let Some(rest) = path.strip_prefix('~') {
-        if let Ok(home) = std::env::var("HOME") {
-            let mut p = PathBuf::from(home);
-            let rest = rest.strip_prefix('/').unwrap_or(rest);
-            p.push(rest);
-            return p;
-        }
-    }
-    PathBuf::from(path)
-}
-
 fn hex_encode(bytes: &[u8]) -> String {
     let mut s = String::with_capacity(bytes.len() * 2);
     for b in bytes {
@@ -81,7 +69,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 /// The icons root (`~/.local/share/icons`).
 #[must_use]
 pub fn default_icons_root() -> PathBuf {
-    expand_tilde("~/.local/share/icons")
+    crate::pack::expand_tilde("~/.local/share/icons")
 }
 
 /// `<hash>` → `Miconium-<hash>`.
@@ -119,7 +107,7 @@ pub fn color_source_hash(preset_name: &str, config: &Config) -> Option<String> {
 
     let mut hashed_source = false;
     if let Some(raw) = color_source_path(config) {
-        let expanded = expand_tilde(&raw);
+        let expanded = crate::pack::expand_tilde(&raw);
         if let Ok(bytes) = std::fs::read(&expanded) {
             hasher.update(b"source:");
             hasher.update(&bytes);
@@ -391,12 +379,9 @@ fn regenerate(
     hash: &str,
     dir: &Path,
 ) -> Result<(), DaemonError> {
-    let path = config
-        .pack
-        .path
-        .as_deref()
+    let path = pack::resolve_pack_path(&config.pack)
         .ok_or_else(|| DaemonError::PackPathMissing(preset_name.to_string()))?;
-    let pack = pack::Pack::load(path)?;
+    let pack = pack::Pack::load(&path)?;
     // Mirror the GUI: resolve the raw palette, then apply the preset's layer
     // map (Frame→background, Sign→accent, Acc→secondary_container, …) so the
     // daemon honours the per-preset colour assignment instead of the defaults.

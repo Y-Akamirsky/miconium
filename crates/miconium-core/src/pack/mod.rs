@@ -241,5 +241,79 @@ fn read_static_frames(dir: &Path) -> Option<StaticFrames> {
     Some(StaticFrames { dark, light })
 }
 
+/// Expand a leading `~` to the user's home directory (`$HOME`).
+#[must_use]
+pub fn expand_tilde(path: &str) -> PathBuf {
+    if let Some(rest) = path.strip_prefix('~') {
+        if let Ok(home) = std::env::var("HOME") {
+            let mut p = PathBuf::from(home);
+            let rest = rest.strip_prefix('/').unwrap_or(rest);
+            p.push(rest);
+            return p;
+        }
+    }
+    PathBuf::from(path)
+}
+
+/// Directories searched (in priority order) for a pack addressed by `name`
+/// when no explicit `path` is configured.
+///
+/// 1. User/third-party packs: `$XDG_DATA_HOME/miconium` or
+///    `~/.local/share/miconium`
+/// 2. Each `$XDG_DATA_DIRS` entry joined with `miconium`
+/// 3. The packaged system location `/usr/share/miconium`
+/// 4. `./packs` relative to the current directory (development convenience)
+#[must_use]
+pub fn pack_search_dirs() -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+
+    let user_base = std::env::var("XDG_DATA_HOME")
+        .ok()
+        .map(PathBuf::from)
+        .or_else(|| std::env::var("HOME").ok().map(|h| PathBuf::from(h).join(".local/share")));
+    if let Some(base) = user_base {
+        dirs.push(base.join("miconium"));
+    }
+
+    if let Ok(dirs_env) = std::env::var("XDG_DATA_DIRS") {
+        for d in dirs_env.split(':') {
+            if !d.is_empty() {
+                dirs.push(PathBuf::from(d).join("miconium"));
+            }
+        }
+    }
+
+    dirs.push(PathBuf::from("/usr/share/miconium"));
+
+    // Development convenience: running from the repository root.
+    dirs.push(PathBuf::from("packs"));
+
+    dirs
+}
+
+/// Resolve the on-disk location of a pack from its [`config::PackConfig`].
+///
+/// An explicit `path` (after `~` expansion) takes priority if it exists.
+/// Otherwise the pack is searched for by `name` across [`pack_search_dirs`].
+/// Returns `None` when nothing matching is found.
+#[must_use]
+pub fn resolve_pack_path(cfg: &crate::config::PackConfig) -> Option<PathBuf> {
+    if let Some(p) = &cfg.path {
+        let expanded = expand_tilde(p);
+        if expanded.is_dir() {
+            return Some(expanded);
+        }
+    }
+
+    for dir in pack_search_dirs() {
+        let candidate = dir.join(&cfg.name);
+        if candidate.is_dir() {
+            return Some(candidate);
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 mod tests;

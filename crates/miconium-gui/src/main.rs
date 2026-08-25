@@ -39,7 +39,13 @@ impl AppData {
         self.pack = Some(Pack::load(path)?);
         Ok(())
     }
+}
 
+/// Resolve the effective pack path for `config`, honouring an explicit
+/// `pack.path` and falling back to the standard search directories
+/// (user data dir, then system `/usr/share/miconium`).
+fn resolved_pack_path(config: &Config) -> Option<std::path::PathBuf> {
+    miconium_core::pack::resolve_pack_path(&config.pack)
 }
 
 fn main() -> glib::ExitCode {
@@ -126,12 +132,10 @@ fn try_load_initial_pack(
     window: &gtk::ApplicationWindow,
     header: &gtk::HeaderBar,
 ) {
-    let pack_path = {
-        let d = data.borrow();
-        d.config.pack.path.clone()
-    };
+    let pack_path = resolved_pack_path(&data.borrow().config);
+    let pack_path_str = pack_path.as_ref().map(|p| p.to_string_lossy().into_owned());
 
-    if let Some(path) = pack_path {
+    if let Some(path) = pack_path_str {
         let data_clone = Rc::downgrade(data);
         let paned = window.child().and_downcast::<gtk::Paned>().expect("paned as child");
         let header_clone = header.clone();
@@ -178,11 +182,10 @@ fn build_sidebar(data: &Rc<RefCell<AppData>>, header: &gtk::HeaderBar) -> gtk::B
     let pack_label = gtk::Label::new(None);
     {
         let d = data.borrow();
-        let display_name = d.config.pack.path.as_deref()
-            .and_then(|p| std::path::Path::new(p).file_name())
-            .and_then(|n| n.to_str())
-            .unwrap_or("none");
-        pack_label.set_text(display_name);
+        let display_name = resolved_pack_path(&d.config)
+            .and_then(|p| p.file_name().and_then(|n| n.to_str()).map(str::to_string))
+            .unwrap_or_else(|| "none".to_string());
+        pack_label.set_text(&display_name);
         pack_label.set_xalign(0.0);
     }
     pack_box.pack_start(&pack_label, false, false, 0);
@@ -466,9 +469,10 @@ fn apply_preset(
         d.current_preset = Some(name.to_string());
         d.base_palette = color::resolve_palette(&new_config.colors).unwrap_or_default();
         d.palette = d.base_palette.clone().with_layer_map(&new_config.colors.map);
-        match &new_config.pack.path {
+        match resolved_pack_path(&new_config) {
             Some(path) => {
-                if let Err(e) = d.load_pack(path) {
+                let p = path.to_string_lossy().into_owned();
+                if let Err(e) = d.load_pack(&p) {
                     show_error(window.upcast_ref::<gtk::Window>(), &format!("Failed to load pack: {e}"));
                 }
             }
@@ -1164,11 +1168,9 @@ fn rebuild_acc_modules(
 
 fn update_pack_label(data: &Rc<RefCell<AppData>>) {
     let Some(label) = data.borrow().pack_label.clone() else { return };
-    let name = data.borrow().config.pack.path.as_deref()
-        .and_then(|p| std::path::Path::new(p).file_name())
-        .and_then(|n| n.to_str())
-        .unwrap_or("none")
-        .to_string();
+    let name = resolved_pack_path(&data.borrow().config)
+        .and_then(|p| p.file_name().and_then(|n| n.to_str()).map(str::to_string))
+        .unwrap_or_else(|| "none".to_string());
     label.set_text(&name);
 }
 

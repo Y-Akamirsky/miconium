@@ -45,12 +45,18 @@ preset_poll_seconds = 900
 # Pack — the raw SVG layer set the icons are assembled from
 # -----------------------------------------------------------------------------
 [pack]
-# Path to the raw pack directory (frames + signs + accessories). May be
-# relative to the Miconium project root or an absolute path; `~` is expanded.
+# Explicit path to a raw pack directory (frames + signs + accessories). May be
+# relative to the project root or absolute; `~` is expanded. When omitted, the
+# pack is resolved by `name` from the standard search dirs:
+#   ~/.local/share/miconium  (user / third-party packs)
+#   /usr/share/miconium      (packaged system pack, e.g. `yamis`)
+# The bundled `yamis` pack shipped with the package lives in
+# /usr/share/miconium/yamis and is selected automatically by `name` below.
 
-path = "~/.local/share/miconium/yamis"
+# path = "/custom/path/to/yamis"
 
-# Human-readable pack name (used in generated metadata / logs).
+# Human-readable pack name (used in generated metadata / logs). Resolved against
+# the search dirs above when no explicit `path` is set.
 
 name = "yamis"
 

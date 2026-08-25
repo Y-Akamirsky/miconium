@@ -31,7 +31,7 @@ window_height = 768
 fn parse_minimal_config() {
     let config: Config = toml::from_str(MINIMAL_TOML).unwrap();
     assert_eq!(config.pack.path.as_deref(), Some("packs/mono"));
-    assert_eq!(config.pack.name, "mono");
+    assert_eq!(config.pack.name, "yamis");
     assert!(config.colors.scheme.is_none());
 }
 
@@ -56,7 +56,7 @@ fn parse_full_config() {
 #[test]
 fn default_config_values() {
     let config = Config::default();
-    assert_eq!(config.pack.name, "mono");
+    assert_eq!(config.pack.name, "yamis");
     assert!(config.pack.path.is_none());
     assert!(config.colors.scheme.is_none());
     assert_eq!(config.export.sizes.len(), 9);
@@ -66,7 +66,7 @@ fn default_config_values() {
 #[test]
 fn empty_toml_uses_defaults() {
     let config: Config = toml::from_str("").unwrap();
-    assert_eq!(config.pack.name, "mono");
+    assert_eq!(config.pack.name, "yamis");
     assert_eq!(config.gui.window_width, 800);
 }
 
@@ -77,7 +77,7 @@ path = "custom/path"
 "#;
     let config: Config = toml::from_str(toml).unwrap();
     assert_eq!(config.pack.path.as_deref(), Some("custom/path"));
-    assert_eq!(config.pack.name, "mono");
+    assert_eq!(config.pack.name, "yamis");
 }
 
 #[test]

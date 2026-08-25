@@ -1,0 +1,75 @@
+# Maintainer: Y-Akamirsky <you@example.com>
+pkgname=miconium
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Material Design SVG icon generator for Linux desktops"
+arch=('x86_64')
+url="https://github.com/Y-Akamirsky/miconium"
+license=('GPL3')
+depends=('gtk3' 'gtk-update-icon-cache' 'desktop-file-utils')
+makedepends=('cargo' 'git')
+optdepends=('matugen: dynamic color generation from your wallpaper')
+provides=('miconium')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo build --release --frozen
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo test --release --frozen || true
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+
+    # binaries
+    install -Dm755 "target/release/miconium-gui"  "$pkgdir/usr/bin/miconium-gui"
+    install -Dm755 "target/release/miconiumd"     "$pkgdir/usr/bin/miconiumd"
+
+    # appearance stuff
+    install -Dm644 "install/miconium.desktop"      "$pkgdir/usr/share/applications/miconium.desktop"
+    install -Dm644 "install/miconium.svg"          "$pkgdir/usr/share/icons/hicolor/scalable/apps/miconium.svg"
+
+    # daemon (systemd, user)
+    install -Dm644 "install/daemon-service/systemd/miconiumd.service" "$pkgdir/usr/lib/systemd/user/miconiumd.service"
+
+    # bundled ("yamis") pack — system-wide default resolved by the program from
+    # /usr/share/miconium; third-party packs live in the user data dir.
+    install -dm755 "$pkgdir/usr/share/miconium"
+    cp -r "packs/yamis" "$pkgdir/usr/share/miconium/"
+
+    # reference config, default preset and matugen template (user convenience)
+    install -Dm644 "install/miconium.example.toml" "$pkgdir/usr/share/miconium/miconium.example.toml"
+    install -Dm644 "install/std-preset.toml"       "$pkgdir/usr/share/miconium/presets/std-preset.toml"
+    install -Dm644 "matugen/template/miconium.json" "$pkgdir/usr/share/miconium/matugen/template/miconium.json"
+
+    # license
+    install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+
+post_install() {
+    gtk-update-icon-cache -f /usr/share/icons/hicolor &>/dev/null || true
+    update-desktop-database /usr/share/applications &>/dev/null || true
+}
+
+post_upgrade() {
+    post_install
+}
+
+post_remove() {
+    gtk-update-icon-cache -f /usr/share/icons/hicolor &>/dev/null || true
+    update-desktop-database /usr/share/applications &>/dev/null || true
+}

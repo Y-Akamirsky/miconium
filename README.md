@@ -68,7 +68,7 @@ curl -sSL https://raw.githubusercontent.com/Y-Akamirsky/miconium/main/install/in
    # configuration stuff
    mkdir -p ~/.config/miconium/presets
    mkdir -p ~/.local/share/miconium/
-   cp install/miconium.example.toml ~/.config/miconium/miconium.toml
+   cp install/miconium.example.toml ~/.config/miconium/config.toml
    cp install/std-preset.toml ~/.config/miconium/presets
    cp -r packs/yamis ~/.local/share/miconium/
    # daemon (systemd);(optional)
