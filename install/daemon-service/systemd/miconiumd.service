@@ -2,6 +2,7 @@
 Description=Miconium icon theme daemon
 Documentation=https://github.com/Y-Akamirsky/miconium
 After=graphical-session.target
+Requisite=graphical-session.target
 
 [Service]
 Type=simple
@@ -10,4 +11,4 @@ Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target
