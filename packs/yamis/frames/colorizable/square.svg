@@ -21,7 +21,7 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="6.78125"
-     inkscape:cx="16.221198"
+     inkscape:cx="16.294931"
      inkscape:cy="36.571429"
      inkscape:window-width="1920"
      inkscape:window-height="1048"
@@ -53,26 +53,16 @@
        inkscape:collect="always"
        style="color-interpolation-filters:sRGB"
        id="filter2"
-       x="-0.038090324"
-       y="-0.038090324"
-       width="1.0761806"
-       height="1.0761806">
+       x="-0.058340522"
+       y="-0.058340522"
+       width="1.116681"
+       height="1.116681">
       <feGaussianBlur
          inkscape:collect="always"
-         stdDeviation="0.23516014"
+         stdDeviation="0.35091747"
          id="feGaussianBlur2" />
     </filter>
   </defs>
-  <rect
-     x="1.058"
-     y="1.05"
-     width="14.817"
-     height="14.817"
-     rx="3.4400001"
-     ry="3.4400001"
-     id="rect2"
-     style="opacity:0.373556;fill-opacity:1;stroke:none;stroke-width:0.565397;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers;filter:url(#filter2)"
-     transform="matrix(1.0342552,0,0,1.0269148,-0.29002182,0.064962)" />
   <defs
      id="defs6">
     <linearGradient
@@ -99,14 +89,13 @@
          id="stop6" />
     </linearGradient>
   </defs>
-  <rect
-     x="1.058"
-     y="1.05"
-     width="14.817"
-     height="14.817"
-     rx="3.44"
-     ry="3.44"
-     fill="url(#a-0)"
+  <path
      id="rect1"
-     style="fill:#000000;fill-opacity:1" />
+     style="opacity:0.523995;fill-rule:evenodd;stroke-width:0.9597;stroke-linecap:round;stroke-linejoin:round;paint-order:stroke fill markers;filter:url(#filter2)"
+     transform="matrix(1.0193624,0,0,1.0121015,-0.16393173,0.26819589)"
+     d="m 5.7754021,1.2485161 h 5.3821959 c 2.507894,0 4.526886,2.0189911 4.526886,4.526886 v 5.3821959 c 0,2.507894 -2.018992,4.526886 -4.526886,4.526886 H 5.7754021 c -2.5078949,0 -4.526886,-2.018992 -4.526886,-4.526886 V 5.7754021 c 0,-2.5078949 2.0189911,-4.526886 4.526886,-4.526886 z" />
+  <path
+     id="rect2"
+     style="opacity:1;fill-rule:evenodd;stroke-width:0.9597;stroke-linecap:round;stroke-linejoin:round;paint-order:stroke fill markers;fill:#000000;fill-opacity:1"
+     d="m 5.7754021,1.2485161 h 5.3821959 c 2.507894,0 4.526886,2.0189911 4.526886,4.526886 v 5.3821959 c 0,2.507894 -2.018992,4.526886 -4.526886,4.526886 H 5.7754021 c -2.5078949,0 -4.526886,-2.018992 -4.526886,-4.526886 V 5.7754021 c 0,-2.5078949 2.0189911,-4.526886 4.526886,-4.526886 z" />
 </svg>

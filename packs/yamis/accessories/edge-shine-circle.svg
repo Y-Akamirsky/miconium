@@ -22,8 +22,8 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="6.7812501"
-     inkscape:cx="36.423963"
-     inkscape:cy="23.741935"
+     inkscape:cx="22.488479"
+     inkscape:cy="36.276497"
      inkscape:window-width="1920"
      inkscape:window-height="1048"
      inkscape:window-x="0"
@@ -32,22 +32,6 @@
      inkscape:current-layer="svg6" />
   <defs
      id="defs2">
-    <linearGradient
-       id="linearGradient9"
-       inkscape:collect="always">
-      <stop
-         style="stop-color:#ffffff;stop-opacity:1;"
-         offset="0"
-         id="stop9" />
-      <stop
-         style="stop-color:#ffffff;stop-opacity:0;"
-         offset="0.49435028"
-         id="stop10" />
-      <stop
-         style="stop-color:#ffffff;stop-opacity:1;"
-         offset="0.98022598"
-         id="stop11" />
-    </linearGradient>
     <linearGradient
        id="a-0"
        x1="2.5418189"
@@ -68,14 +52,29 @@
     </linearGradient>
     <linearGradient
        inkscape:collect="always"
-       xlink:href="#linearGradient9"
-       id="linearGradient10"
-       x1="3.2281203"
-       y1="3.2281206"
-       x2="13.70488"
-       y2="13.704881"
-       gradientUnits="userSpaceOnUse"
-       gradientTransform="matrix(1.0607698,0,0,1.0608498,-0.51452533,-0.51520322)" />
+       xlink:href="#linearGradient2"
+       id="linearGradient7"
+       x1="3.0465164"
+       y1="3.0465159"
+       x2="13.886483"
+       y2="13.886482"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       id="linearGradient2"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#ffffff;stop-opacity:1;"
+         offset="0"
+         id="stop3" />
+      <stop
+         style="stop-color:#ffffff;stop-opacity:0;"
+         offset="0.50363106"
+         id="stop7" />
+      <stop
+         style="stop-color:#ffffff;stop-opacity:1;"
+         offset="1"
+         id="stop8" />
+    </linearGradient>
   </defs>
   <defs
      id="defs6">
@@ -103,8 +102,7 @@
     </linearGradient>
   </defs>
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;opacity:0.355491;vector-effect:none;fill:url(#linearGradient10);stroke-width:1.06081;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
-     d="m 8.4667969,0.60780573 c -4.3371598,0 -7.85839803,3.52150397 -7.85839803,7.85899117 0,4.3374871 3.52123823,7.8589911 7.85839803,7.8589911 4.3371601,0 7.8583981,-3.521504 7.8583981,-7.8589911 0,-4.3374872 -3.521238,-7.85899117 -7.8583981,-7.85899117 z m 0,0.68419217 c 3.9653651,0 7.1742571,3.2091341 7.1742571,7.174799 0,3.9656651 -3.208892,7.1747981 -7.1742571,7.1747981 -3.9653657,0 -7.1742576,-3.209133 -7.1742576,-7.1747981 0,-3.9656649 3.2088919,-7.174799 7.1742576,-7.174799 z"
-     id="circle1"
-     sodipodi:nodetypes="ssssssssss" />
+     id="path1"
+     style="display:inline;opacity:0.355;fill:url(#linearGradient7);fill-opacity:1;stroke:none;stroke-width:0.959252;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill"
+     d="M 8.4665 0.60770288 A 7.8586946 7.8586946 0 0 0 0.60770288 8.4665 A 7.8586946 7.8586946 0 0 0 8.4665 16.325297 A 7.8586946 7.8586946 0 0 0 16.325297 8.4665 A 7.8586946 7.8586946 0 0 0 8.4665 0.60770288 z M 8.4670168 1.2696649 C 12.449782 1.269665 15.663852 4.4842512 15.663852 8.4670168 C 15.663852 12.449782 12.449782 15.663852 8.4670168 15.663852 C 4.4842512 15.663852 1.2696649 12.449782 1.2696649 8.4670168 C 1.269665 4.4842512 4.4842512 1.2696649 8.4670168 1.2696649 z " />
 </svg>

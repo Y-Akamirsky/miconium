@@ -22,8 +22,8 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="6.7812501"
-     inkscape:cx="15.041474"
-     inkscape:cy="25.364055"
+     inkscape:cx="22.414746"
+     inkscape:cy="36.276497"
      inkscape:window-width="1920"
      inkscape:window-height="1048"
      inkscape:window-x="0"
@@ -52,41 +52,41 @@
     </linearGradient>
     <linearGradient
        inkscape:collect="always"
-       xlink:href="#linearGradient1-1"
-       id="linearGradient7"
-       x1="2.9109318"
-       y1="2.9109323"
-       x2="14.022068"
-       y2="14.022068"
+       xlink:href="#linearGradient17"
+       id="linearGradient1"
        gradientUnits="userSpaceOnUse"
+       x1="0.78492594"
+       y1="0.61956447"
+       x2="16.148073"
+       y2="15.982713"
        spreadMethod="repeat" />
     <linearGradient
-       id="linearGradient1-1"
+       id="linearGradient17"
        inkscape:label="glass-shine">
       <stop
          style="stop-color:#ffffff;stop-opacity:0;"
          offset="0"
-         id="stop9" />
+         id="stop12" />
       <stop
          style="stop-color:#ffffff;stop-opacity:0.5;"
          offset="0.22984281"
-         id="stop8" />
+         id="stop13" />
       <stop
          style="stop-color:#ffffff;stop-opacity:0.41960784;"
          offset="0.39573562"
-         id="stop10" />
+         id="stop14" />
       <stop
          style="stop-color:#ffffff;stop-opacity:0;"
          offset="0.63425457"
-         id="stop3-6" />
+         id="stop15" />
       <stop
          style="stop-color:#ffffff;stop-opacity:0.0745098;"
          offset="0.83005035"
-         id="stop11" />
+         id="stop16" />
       <stop
          style="stop-color:#ffffff;stop-opacity:0.5;"
          offset="1"
-         id="stop7-7" />
+         id="stop17" />
     </linearGradient>
   </defs>
   <defs
@@ -115,8 +115,8 @@
     </linearGradient>
   </defs>
   <circle
-     style="display:inline;fill:url(#linearGradient7);fill-opacity:1;stroke:none;stroke-width:0.553103;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers;opacity:0.15"
-     id="path1-3"
+     style="display:inline;opacity:0.15;fill:url(#linearGradient1);fill-opacity:1;stroke:none;stroke-width:0.553103;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers"
+     id="path1"
      cx="8.4665003"
      cy="8.4665003"
      r="7.8586946" />

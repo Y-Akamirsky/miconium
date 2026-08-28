@@ -7,11 +7,11 @@
    id="svg6"
    sodipodi:docname="outline-circle.svg"
    inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
-   xml:space="preserve"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
      id="namedview6"
      pagecolor="#ffffff"
      bordercolor="#000000"
@@ -21,65 +21,62 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="6.7812501"
-     inkscape:cx="1.7695852"
-     inkscape:cy="47.778801"
+     inkscape:cx="22.414746"
+     inkscape:cy="36.276497"
      inkscape:window-width="1920"
      inkscape:window-height="1048"
      inkscape:window-x="0"
      inkscape:window-y="32"
      inkscape:window-maximized="1"
-     inkscape:current-layer="svg6" /><defs
-     id="defs2"><linearGradient
+     inkscape:current-layer="svg6" />
+  <defs
+     id="defs2">
+    <linearGradient
        id="a-0"
        x1="2.5418189"
        x2="12.742182"
        y1="3.1766074"
        y2="13.739392"
-       gradientUnits="userSpaceOnUse"><stop
+       gradientUnits="userSpaceOnUse">
+      <stop
          stop-color="#474747"
          offset="0"
          id="stop1"
-         style="stop-color:#2a2a2a;stop-opacity:1;" /><stop
+         style="stop-color:#2a2a2a;stop-opacity:1;" />
+      <stop
          stop-color="#333"
          offset="1"
          id="stop2"
-         style="stop-color:#000000;stop-opacity:1;" /></linearGradient><linearGradient
-       id="linearGradient1"
-       x1="0%"
-       y1="0%"
-       x2="100%"
-       y2="100%"><stop
-         offset="0%"
-         stop-color="#ffffff"
-         stop-opacity="0.5"
-         id="stop4-6" /><stop
-         offset="50%"
-         stop-color="#ffffff"
-         stop-opacity="0"
-         id="stop5-1" /><stop
-         offset="100%"
-         stop-color="#ffffff"
-         stop-opacity="0.5"
-         id="stop6-2" /></linearGradient></defs><defs
-     id="defs6"><linearGradient
+         style="stop-color:#000000;stop-opacity:1;" />
+    </linearGradient>
+  </defs>
+  <defs
+     id="defs6">
+    <linearGradient
        id="shine-grad-final-v3"
        x1="0%"
        y1="0%"
        x2="100%"
-       y2="100%"><stop
+       y2="100%">
+      <stop
          offset="0%"
          stop-color="#ffffff"
          stop-opacity="0.5"
-         id="stop4" /><stop
+         id="stop4" />
+      <stop
          offset="50%"
          stop-color="#ffffff"
          stop-opacity="0"
-         id="stop5" /><stop
+         id="stop5" />
+      <stop
          offset="100%"
          stop-color="#ffffff"
          stop-opacity="0.5"
-         id="stop6" /></linearGradient></defs><path
-     style="baseline-shift:baseline;display:inline;overflow:visible;opacity:1;vector-effect:none;fill:#ffffff;stroke-width:1.06081;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill;enable-background:accumulate;stop-color:#000000;stop-opacity:1;fill-opacity:1"
-     d="m 8.4665001,0.60750895 c -4.33716,0 -7.858398,3.52150385 -7.858398,7.85899105 0,4.337487 3.521238,7.858991 7.858398,7.858991 4.3371599,0 7.8583979,-3.521504 7.8583979,-7.858991 0,-4.3374872 -3.521238,-7.85899105 -7.8583979,-7.85899105 z m 0,0.68419205 c 3.9653649,0 7.1742569,3.2091341 7.1742569,7.174799 0,3.965665 -3.208892,7.174798 -7.1742569,7.174798 -3.965366,0 -7.174258,-3.209133 -7.174258,-7.174798 0,-3.9656648 3.208892,-7.1747989 7.174258,-7.174799 z"
-     id="circle1"
-     sodipodi:nodetypes="ssssssssss" /></svg>
+         id="stop6" />
+    </linearGradient>
+  </defs>
+  <path
+     id="path1"
+     style="display:inline;opacity:1;fill:#fafafa;fill-opacity:1;stroke:none;stroke-width:0.959252;stroke-linecap:round;stroke-linejoin:round;paint-order:markers stroke fill"
+     d="M 8.4665 0.60770288 A 7.8586946 7.8586946 0 0 0 0.60770288 8.4665 A 7.8586946 7.8586946 0 0 0 8.4665 16.325297 A 7.8586946 7.8586946 0 0 0 16.325297 8.4665 A 7.8586946 7.8586946 0 0 0 8.4665 0.60770288 z M 8.4670168 1.2696649 C 12.449782 1.269665 15.663852 4.4842512 15.663852 8.4670168 C 15.663852 12.449782 12.449782 15.663852 8.4670168 15.663852 C 4.4842512 15.663852 1.2696649 12.449782 1.2696649 8.4670168 C 1.269665 4.4842512 4.4842512 1.2696649 8.4670168 1.2696649 z " />
+</svg>

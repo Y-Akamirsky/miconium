@@ -22,7 +22,7 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="6.78125"
-     inkscape:cx="16.221198"
+     inkscape:cx="16.368664"
      inkscape:cy="36.571429"
      inkscape:window-width="1920"
      inkscape:window-height="1048"
@@ -52,53 +52,43 @@
     </linearGradient>
     <linearGradient
        inkscape:collect="always"
-       xlink:href="#linearGradient1-1"
-       id="linearGradient7"
-       x1="1.3307524"
-       y1="1.330753"
-       x2="15.836344"
-       y2="15.836345"
+       xlink:href="#linearGradient17"
+       id="linearGradient1"
        gradientUnits="userSpaceOnUse"
+       x1="0.78492594"
+       y1="0.61956447"
+       x2="16.148073"
+       y2="15.982713"
        spreadMethod="repeat" />
     <linearGradient
-       id="linearGradient1-1"
+       id="linearGradient17"
        inkscape:label="glass-shine">
       <stop
          style="stop-color:#ffffff;stop-opacity:0;"
          offset="0"
-         id="stop9" />
+         id="stop12" />
       <stop
          style="stop-color:#ffffff;stop-opacity:0.5;"
          offset="0.22984281"
-         id="stop8" />
+         id="stop13" />
       <stop
          style="stop-color:#ffffff;stop-opacity:0.41960784;"
          offset="0.39573562"
-         id="stop10" />
+         id="stop14" />
       <stop
          style="stop-color:#ffffff;stop-opacity:0;"
          offset="0.63425457"
-         id="stop3" />
+         id="stop15" />
       <stop
          style="stop-color:#ffffff;stop-opacity:0.0745098;"
          offset="0.83005035"
-         id="stop11" />
+         id="stop16" />
       <stop
          style="stop-color:#ffffff;stop-opacity:0.5;"
          offset="1"
-         id="stop7" />
+         id="stop17" />
     </linearGradient>
   </defs>
-  <rect
-     x="1.058"
-     y="1.05"
-     width="14.817"
-     height="14.817"
-     rx="3.44"
-     ry="3.44"
-     fill="url(#a-0)"
-     id="rect2"
-     style="fill:url(#linearGradient7);fill-opacity:1;opacity:0.15;stroke:none;stroke-width:0.553103;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers" />
   <defs
      id="defs6">
     <linearGradient
@@ -125,4 +115,8 @@
          id="stop6" />
     </linearGradient>
   </defs>
+  <path
+     id="rect2"
+     style="opacity:0.15;fill-rule:evenodd;stroke-width:0.553103;stroke-linecap:square;stroke-linejoin:round;paint-order:stroke fill markers;fill:url(#linearGradient1);fill-opacity:1;stroke:none"
+     d="m 5.7754021,1.2485161 h 5.3821959 c 2.507894,0 4.526886,2.0189911 4.526886,4.526886 v 5.3821959 c 0,2.507894 -2.018992,4.526886 -4.526886,4.526886 H 5.7754021 c -2.5078949,0 -4.526886,-2.018992 -4.526886,-4.526886 V 5.7754021 c 0,-2.5078949 2.0189911,-4.526886 4.526886,-4.526886 z" />
 </svg>
