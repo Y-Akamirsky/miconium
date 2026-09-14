@@ -37,6 +37,9 @@
 	sm.puri.Chatty
 	virt-viewer
 	xgps
+  4CBA_cavalry.0
+  io.github.qarmin.krokiet
+  io.element.Element
 
 - symbolic
 	com.github.AppManager-symbolic
@@ -64,8 +67,9 @@
 	570 - dota2
 	823130 - tabg
 	4068140 - gvalt
-
-
+  4963920 - porthole
+  4108000 - machine party
+  2835570 - buckshot roulette
 [status]
 - scalable
 //	dev.lizardbyte.app.Sunshine-tray
