@@ -18,6 +18,8 @@ ___
     - [Arch Linux](#arch-linux)
     - [Make](#via-make)
 - [Post-install](#post-install-setup)
+    - [Daemon](#daemon-setup)
+    - [Matugen](#matugen-setup)
 ___
 
 <div align="center">
