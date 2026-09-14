@@ -13,6 +13,8 @@ ___
 ##  Contents
 </div>
 
+[RU](README_RU.md)
+
 - [Showcase](#showcase)
 - [Installation](#installation)
     - [Arch Linux](#arch-linux)
