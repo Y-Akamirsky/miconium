@@ -121,3 +121,10 @@ miconiumd cleanup-cache
 input_path = '/usr/share/miconium/matugen/template/miconium.json'
 output_path = '~/.local/share/miconium/matugen/matugen.json'
 ```
+
+<div align="center">
+
+## Благодарности
+</div>
+
+- Базовый набор иконок — [Yet Another Monochrome Icon Set (YAMIS)](https://bitbucket.org/dirn-typo/yet-another-monochrome-icon-set/src/main/) ![License](https://img.shields.io/badge/license-GPL3-623994)
