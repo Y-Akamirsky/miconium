@@ -68,6 +68,7 @@ uninstall:
 	rm -f $(DESTDIR)$(APPDIR)/miconium.desktop
 	rm -f $(DESTDIR)$(ICONDIR)/miconium.svg
 	rm -f $(DESTDIR)$(SYSTEMD)/miconiumd.service
+	rm -rf $(DESTDIR)$(SHAREDIR)/yamis/
 	@if [ -z "$(DESTDIR)" ]; then \
 		update-desktop-database $(APPDIR) || true; \
 		gtk-update-icon-cache -f $(PREFIX)/share/icons/hicolor || true; \
