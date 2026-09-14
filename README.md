@@ -121,6 +121,7 @@ miconiumd cleanup-cache
 input_path = '/usr/share/miconium/matugen/template/miconium.json'
 output_path = '~/.local/share/miconium/matugen/matugen.json'
 ```
+___
 
 <div align="center">
 
