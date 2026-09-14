@@ -4,7 +4,7 @@
 # **miconium**
 *pronounce*: **[maɪˈkoʊ.ni.əm]**
 
-## Material Design SVG icon Generator
+## Material Design SVG Icon Generator
 </div>
 
 ___
@@ -39,7 +39,7 @@ ___
 > [!WARNING] 
 > Non-systemd distros are temporarily unsupported
 
-### **Arch Linux**
+### Arch Linux
   - *Clone repository*
   ```bash
   git clone https://github.com/Y-Akamirsky/miconium.git
@@ -52,13 +52,13 @@ ___
   > [!TIP]
   > You can remove cloned repo after install: `rm -rf ~/miconium`
   
-### **Via make**
+### Via Make
   - *Clone repository*:
   ```bash
   git clone https://github.com/Y-Akamirsky/miconium.git
   cd miconium/
   ```
-  - *Build project* (Depends on - cargo, make):
+  - *Build project* (Depends on: cargo, make):
   ```bash
   make build
   ```
