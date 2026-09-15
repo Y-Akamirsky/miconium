@@ -125,7 +125,7 @@ ___
 
 <div align="center">
 
-## Credits
+## Благодарности
 </div>
 
-- Standard icon pack base — [Yet Another Monochrome Icon Set (YAMIS)](https://bitbucket.org/dirn-typo/yet-another-monochrome-icon-set/src/main/) ![License](https://img.shields.io/badge/license-GPL3-623994)
+- Базовый набор иконок — [Yet Another Monochrome Icon Set (YAMIS)](https://bitbucket.org/dirn-typo/yet-another-monochrome-icon-set/src/main/) ![License](https://img.shields.io/badge/license-GPL3-623994)
