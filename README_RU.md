@@ -22,6 +22,7 @@ ___
 - [После установки](#настройка-после-установки)
     - [Демон](#настройка-демона)
     - [Matugen](#настройка-matugen)
+- [Благодарности](#благодарности)
 ___
 
 <div align="center">
@@ -121,6 +122,12 @@ miconiumd cleanup-cache
 input_path = '/usr/share/miconium/matugen/template/miconium.json'
 output_path = '~/.local/share/miconium/matugen/matugen.json'
 ```
+
+>[!NOTE]
+> Если у вас Dank Material Shell (DMS) - вы можете использовать его файл вместо пользовательского конфига ~/.cache/DankMaterialShell/dms-colors.json
+
+> [!WARNING]
+> Не будет работать если вы решите сменить шелл, основной вариант надежнее
 ___
 
 <div align="center">
