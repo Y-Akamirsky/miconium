@@ -2,18 +2,19 @@
 pkgname=miconium
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="Material Design SVG icon generator for Linux desktops"
+pkgdesc="Material Design 3 SVG icon generator for Linux desktops"
 arch=('any')
 url="https://github.com/Y-Akamirsky/miconium"
 license=('GPL3')
 depends=('gtk3' 'gtk-update-icon-cache' 'desktop-file-utils')
 makedepends=('cargo' 'git')
-optdepends=('matugen:')
+optdepends=('matugen')
 provides=('miconium')
 source=("${pkgname}-${pkgver}::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 sha256sums=('SKIP')
 
 prepare() {
+    ln -sf "${pkgname}-${pkgver}" "${pkgname}"
     cd "${pkgname}"
     export RUSTUP_TOOLCHAIN=stable
     cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
