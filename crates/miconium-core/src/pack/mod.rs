@@ -261,8 +261,13 @@ pub fn expand_tilde(path: &str) -> PathBuf {
 /// 1. User/third-party packs: `$XDG_DATA_HOME/miconium` or
 ///    `~/.local/share/miconium`
 /// 2. Each `$XDG_DATA_DIRS` entry joined with `miconium`
-/// 3. The packaged system location `/usr/share/miconium`
-/// 4. `./packs` relative to the current directory (development convenience)
+/// 3. The packaged system location `/usr/share/miconium` — this is where the
+///    official packs (e.g. `yamis`) are installed from the separate
+///    miconium-iconpack repository, which is versioned and updated
+///    independently from this program
+/// 4. `./packs` relative to the current directory; during development the
+///    iconpack repository is cloned there:
+///    `git clone https://github.com/Y-Akamirsky/miconium-iconpack packs`
 #[must_use]
 pub fn pack_search_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();

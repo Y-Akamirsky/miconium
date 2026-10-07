@@ -19,6 +19,7 @@ ___
 - [Installation](#installation)
     - [Arch Linux](#arch-linux)
     - [Make](#via-make)
+- [Icon packs](#icon-packs)
 - [Post-install](#post-install-setup)
     - [Daemon](#daemon-setup)
     - [Matugen](#matugen-setup)
@@ -71,6 +72,53 @@ ___
   ```
   > [!TIP]
   > Uninstall: `sudo make uninstall`
+
+___
+<div align="center">
+
+## Icon packs
+
+</div>
+
+Miconium needs an **icon pack** — the SVG layers it assembles into a theme.
+Packs live in their own repository,
+**[`Y-Akamirsky/miconium-iconpack`](https://github.com/Y-Akamirsky/miconium-iconpack)**,
+so artwork is versioned and updated **independently from this program**: updating
+icons never touches your Miconium install, and updating Miconium never touches
+your icons.
+
+> [!IMPORTANT]
+> Installing Miconium does **not** install any icons — you pick a pack
+> separately. Without one, Miconium has nothing to assemble.
+
+*Install the official `yamis` pack:*
+```bash
+# Arch
+git clone https://github.com/Y-Akamirsky/miconium-iconpack
+cd miconium-iconpack/install/arch-pkgbuild && makepkg -fsi
+
+# any distro
+git clone https://github.com/Y-Akamirsky/miconium-iconpack
+cd miconium-iconpack && sudo make install
+```
+Then choose it in the GUI, or in your config:
+```toml
+[pack]
+name = "yamis"
+```
+
+Packs you install yourself (or download from elsewhere) are picked up
+automatically from `~/.local/share/miconium/<pack-name>/`.
+
+**Want your own pack?** A pack is just a directory of SVGs — build your own
+icons, frames and decorations in any style you like, and validate it with the
+bundled script (bash only):
+```bash
+git clone https://github.com/Y-Akamirsky/miconium-iconpack
+./validate.sh my-pack
+```
+See [`PACK_STRUCTURE.md`](https://github.com/Y-Akamirsky/miconium-iconpack/blob/main/PACK_STRUCTURE.md)
+for the layout. Ricing is meant to be creative: mix and match freely.
 
 ___
 <div align="center">
@@ -136,3 +184,4 @@ ___
 </div>
 
 - Standard icon pack base — [Yet Another Monochrome Icon Set (YAMIS)](https://bitbucket.org/dirn-typo/yet-another-monochrome-icon-set/src/main/) ![License](https://img.shields.io/badge/license-GPL3-623994)
+- Icon packs (packaged separately) — [miconium-iconpack](https://github.com/Y-Akamirsky/miconium-iconpack)

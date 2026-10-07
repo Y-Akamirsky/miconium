@@ -1,0 +1,46 @@
+# Miconium post-install hooks.
+#
+# Kept in a dedicated .install file (rather than in the PKGBUILD) so that the
+# notice is shown by pacman for everyone, including installs from a binary
+# repository where PKGBUILD functions are not executed.
+
+post_install() {
+    gtk-update-icon-cache -f /usr/share/icons/hicolor &>/dev/null || true
+    update-desktop-database /usr/share/applications &>/dev/null || true
+
+    cat <<'EOF'
+
+----------------------------------------
+ Miconium icon packs are installed and updated
+ SEPARATELY from the program itself.
+
+ Official "yamis" pack:
+   Arch: git clone https://github.com/Y-Akamirsky/miconium-iconpack
+         cd miconium-iconpack/install/arch-pkgbuild && makepkg -fsi
+   Make: git clone https://github.com/Y-Akamirsky/miconium-iconpack
+         cd miconium-iconpack && sudo make install
+
+ Any pack in ~/.local/share/miconium/<name>/ is picked up
+ automatically as well.
+
+ You can build YOUR OWN pack: your own icons, frames and
+ accessories, in any style — see PACK_STRUCTURE.md in the
+ miconium-iconpack repository.
+----------------------------------------
+
+EOF
+}
+
+post_upgrade() {
+    post_install
+}
+
+post_remove() {
+    gtk-update-icon-cache -f /usr/share/icons/hicolor &>/dev/null || true
+    update-desktop-database /usr/share/applications &>/dev/null || true
+    cat <<'EOF'
+The Miconium icon pack package (miconium-iconpack) is installed separately
+and was not removed along with the program. To remove it:
+   sudo pacman -R miconium-iconpack
+EOF
+}

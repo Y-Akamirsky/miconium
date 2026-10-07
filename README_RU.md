@@ -19,6 +19,7 @@ ___
 - [Установка](#установка)
     - [Arch Linux](#arch-linux)
     - [Make](#через-make)
+- [Icon-паки](#Icon-паки)
 - [После установки](#настройка-после-установки)
     - [Демон](#настройка-демона)
     - [Matugen](#настройка-matugen)
@@ -71,6 +72,54 @@ sudo make install
 ```
 > [!TIP]
 > Удаление: `sudo make uninstall`
+
+___
+<div align="center">
+
+## Icon-паки
+
+</div>
+
+Miconium нужен **icon-пак** — набор SVG-слоёв, из которых собирается тема.
+Паки лежат в отдельном репозитории
+**[`Y-Akamirsky/miconium-iconpack`](https://github.com/Y-Akamirsky/miconium-iconpack)**,
+поэтому графика версионируется и обновляется **независимо от программы**:
+обновление иконок не трогает установленный Miconium, а обновление Miconium не
+трогает ваши иконки.
+
+> [!IMPORTANT]
+> Установка Miconium **не ставит** никаких иконок — пак вы выбираете отдельно.
+> Без него Miconium нечего собирать.
+
+*Установка официального пака `yamis`:*
+```bash
+# Arch
+git clone https://github.com/Y-Akamirsky/miconium-iconpack
+cd miconium-iconpack/install/arch-pkgbuild && makepkg -fsi
+
+# любой дистрибутив
+git clone https://github.com/Y-Akamirsky/miconium-iconpack
+cd miconium-iconpack && sudo make install
+```
+После этого выберите пак в GUI или в конфиге:
+```toml
+[pack]
+name = "yamis"
+```
+
+Свои пак(и) — скачанные или написанные — подхватываются автоматически из
+`~/.local/share/miconium/<имя-пака>/`.
+
+**Хочешь свой пак?** Пак — это просто директория SVG: сделай свои иконки,
+свои подложки и свои украшения в любом стиле и проверь результат встроенным
+скриптом (только bash):
+```bash
+git clone https://github.com/Y-Akamirsky/miconium-iconpack
+./validate.sh my-pack
+```
+Структура описана в
+[`PACK_STRUCTURE_RU.md`](https://github.com/Y-Akamirsky/miconium-iconpack/blob/main/PACK_STRUCTURE_RU.md).
+Райсинг — это творчество, так что комбинируй всё свободно.
 
 ___
 <div align="center">
@@ -136,3 +185,4 @@ ___
 </div>
 
 - Базовый набор иконок — [Yet Another Monochrome Icon Set (YAMIS)](https://bitbucket.org/dirn-typo/yet-another-monochrome-icon-set/src/main/) ![License](https://img.shields.io/badge/license-GPL3-623994)
+- Айконпаки (ставятся отдельным пакетом) — [miconium-iconpack](https://github.com/Y-Akamirsky/miconium-iconpack)

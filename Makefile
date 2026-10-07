@@ -16,7 +16,10 @@ BIN_GUI      = miconium-gui
 BIN_DAEMON   = miconiumd
 SHAREDIR    ?= $(PREFIX)/share/miconium
 
-.PHONY: build install install-root user-install uninstall clean
+ICONPACK_REPO ?= https://github.com/Y-Akamirsky/miconium-iconpack
+
+.PHONY: build install install-root print-iconpack-notice install-config \
+        user-enable uninstall cleanup clean
 
 build:
 	cargo build --release
@@ -30,11 +33,10 @@ install:
 	$(INSTALL) -Dm644 install/miconium.desktop        $(DESTDIR)$(APPDIR)/miconium.desktop
 	$(INSTALL) -Dm644 install/miconium.svg            $(DESTDIR)$(ICONDIR)/miconium.svg
 	$(INSTALL) -Dm644 install/daemon-service/systemd/miconiumd.service $(DESTDIR)$(SYSTEMD)/miconiumd.service
-	# bundled ("yamis") pack — system-wide default; third-party packs go to
-	# the user data dir (~/.local/share/miconium).
+	# Reference config + default preset. The icon packs themselves live in a
+	# separate repository (miconium-iconpack) and are NOT installed here —
+	# see the notice printed at the end of a real installation.
 	$(INSTALL) -dm755 $(DESTDIR)$(SHAREDIR)
-	$(CP) packs/yamis $(DESTDIR)$(SHAREDIR)/
-	# reference config + default preset shipped for user convenience
 	$(INSTALL) -Dm644 install/miconium.example.toml $(DESTDIR)$(SHAREDIR)/miconium.example.toml
 	$(INSTALL) -Dm644 install/std-preset.toml       $(DESTDIR)$(SHAREDIR)/presets/std-preset.toml
 	# matugen template
@@ -42,6 +44,7 @@ install:
 	@if [ -z "$(DESTDIR)" ]; then \
 		update-desktop-database $(APPDIR) || true; \
 		gtk-update-icon-cache -f $(PREFIX)/share/icons/hicolor || true; \
+		$(MAKE) --no-print-directory print-iconpack-notice; \
 	fi
 
 # Build as the user, then install as root via sudo. One-shot convenience:
@@ -51,9 +54,31 @@ install:
 install-root: build
 	sudo make install DESTDIR="$(DESTDIR)" PREFIX="$(PREFIX)" BIN_GUI="$(BIN_GUI)" BIN_DAEMON="$(BIN_DAEMON)" SHAREDIR="$(SHAREDIR)"
 
-# Install per-user configuration and presets (the bundled pack is already in the
-# system share dir). Run as the regular user (not root). Third-party packs the
-# user wants to add go to ~/.local/share/miconium/.
+print-iconpack-notice:
+	@echo ""
+	@echo "----------------------------------------"
+	@echo " Miconium icon packs are installed and updated"
+	@echo " SEPARATELY from the program itself."
+	@echo ""
+	@echo " Official \"yamis\" pack:"
+	@echo "   Arch: git clone $(ICONPACK_REPO)"
+	@echo "         cd miconium-iconpack/install/arch-pkgbuild && makepkg -fsi"
+	@echo "   Make: git clone $(ICONPACK_REPO)"
+	@echo "         cd miconium-iconpack && sudo make install"
+	@echo ""
+	@echo " Any pack in ~/.local/share/miconium/<name>/ is"
+	@echo " picked up automatically as well."
+	@echo ""
+	@echo " You can build YOUR OWN pack: your own icons, frames"
+	@echo " and accessories, in any style — see PACK_STRUCTURE.md"
+	@echo " in the miconium-iconpack repository."
+	@echo "----------------------------------------"
+	@echo ""
+
+# Install per-user configuration. Run as the regular user (not root).
+# Icon packs are not copied here: the official ones live in /usr/share/miconium
+# (installed from miconium-iconpack), and your own go to
+# ~/.local/share/miconium/<pack-name>/.
 install-config:
 	mkdir -p ~/.config/miconium/presets
 	$(CP) install/miconium.example.toml ~/.config/miconium/miconium.toml
@@ -68,7 +93,11 @@ uninstall:
 	rm -f $(DESTDIR)$(APPDIR)/miconium.desktop
 	rm -f $(DESTDIR)$(ICONDIR)/miconium.svg
 	rm -f $(DESTDIR)$(SYSTEMD)/miconiumd.service
-	rm -rf $(DESTDIR)$(SHAREDIR)/yamis/
+	rm -f $(DESTDIR)$(SHAREDIR)/miconium.example.toml
+	rm -f $(DESTDIR)$(SHAREDIR)/presets/std-preset.toml
+	rm -f $(DESTDIR)$(SHAREDIR)/matugen/template/miconium.json
+	# Installed packs (e.g. /usr/share/miconium/yamis) belong to the
+	# miconium-iconpack package and are deliberately left alone.
 	@if [ -z "$(DESTDIR)" ]; then \
 		update-desktop-database $(APPDIR) || true; \
 		gtk-update-icon-cache -f $(PREFIX)/share/icons/hicolor || true; \

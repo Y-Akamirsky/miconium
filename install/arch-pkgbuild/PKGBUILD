@@ -1,7 +1,7 @@
 # Maintainer: Yaroslav Akamirsky <akamirsky.yaros@gmail.com>
 pkgname=miconium
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Material Design 3 SVG icon generator for Linux desktops"
 arch=('any')
 url="https://github.com/Y-Akamirsky/miconium"
@@ -12,6 +12,10 @@ optdepends=('matugen')
 provides=('miconium')
 source=("${pkgname}-${pkgver}::${url}/archive/refs/tags/v${pkgver}.tar.gz")
 sha256sums=('SKIP')
+# Post-install/upgrade/remove hooks live in a separate file so that pacman
+# shows the iconpack notice also when installing from a binary repository.
+# Declared explicitly: makepkg 7.1 does not pick the file up implicitly.
+install="miconium.install"
 
 prepare() {
     ln -sf "${pkgname}-${pkgver}" "${pkgname}"
@@ -47,12 +51,10 @@ package() {
     # daemon (systemd, user)
     install -Dm644 "install/daemon-service/systemd/miconiumd.service" "${pkgdir}/usr/lib/systemd/user/miconiumd.service"
 
-    # bundled ("yamis") pack — system-wide default resolved by the program from
-    # /usr/share/miconium; third-party packs live in the user data dir.
-    install -dm755 "${pkgdir}/usr/share/miconium"
-    cp -r "packs/yamis" "${pkgdir}/usr/share/miconium/"
-
     # reference config, default preset and matugen template (user convenience)
+    # NOTE: the icon packs themselves are NOT part of this package — they live in
+    # miconium-iconpack and install into /usr/share/miconium/<pack>.
+    install -dm755 "${pkgdir}/usr/share/miconium"
     install -Dm644 "install/miconium.example.toml" "${pkgdir}/usr/share/miconium/miconium.example.toml"
     install -Dm644 "install/std-preset.toml"       "${pkgdir}/usr/share/miconium/presets/std-preset.toml"
     install -Dm644 "matugen/template/miconium.json" "${pkgdir}/usr/share/miconium/matugen/template/miconium.json"
@@ -61,16 +63,7 @@ package() {
     install -Dm644 "LICENSE" "${pkgdir}/usr/share/licenses/$pkgname/LICENSE"
 }
 
-post_install() {
-    gtk-update-icon-cache -f /usr/share/icons/hicolor &>/dev/null || true
-    update-desktop-database /usr/share/applications &>/dev/null || true
-}
-
-post_upgrade() {
-    post_install
-}
-
-post_remove() {
-    gtk-update-icon-cache -f /usr/share/icons/hicolor &>/dev/null || true
-    update-desktop-database /usr/share/applications &>/dev/null || true
-}
+# NOTE: post_install / post_upgrade / post_remove live in `miconium.install`
+# (next to this file) so that pacman also shows the iconpack notice when the
+# package is installed from a binary repository. Keeping them here as well
+# would run everything twice.

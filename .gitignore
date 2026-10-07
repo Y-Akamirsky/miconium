@@ -8,4 +8,11 @@ AGENTS.md
 TO_FIX.md
 .ignore
 miconium.toml
+miconium-*
 testing-pkgbuild/
+src/
+pkg/
+
+# Icon packs live in the separate miconium-iconpack repository. Clone it here
+# for local development:  git clone ...miconium-iconpack packs
+packs/
